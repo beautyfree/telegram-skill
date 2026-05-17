@@ -12,7 +12,7 @@
 
 </div>
 
-A universal **Telegram agent-skill** that plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto). Built on [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) for the underlying client, but ships a *lazy-loaded* transport: the agent only reads the skill instructions when your prompt mentions Telegram, instead of permanently injecting 100+ tool schemas into context.
+A universal **Telegram agent-skill** that plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto) — no MCP server in the loop. Standalone: talks to Telegram directly through gram.js. The agent only reads the skill instructions when your prompt mentions Telegram, instead of permanently injecting 100+ tool schemas into context.
 
 > **TL;DR** — `npm i -g telegram-skill && tg-skill login && tg-skill install`. Then ask any of Claude Code / Codex CLI / Cursor / Gemini CLI / Cline / Windsurf to use Telegram.
 
@@ -27,7 +27,7 @@ The [universal `SKILL.md` format](https://code.claude.com/docs/en/skills) takes 
 | **MCP server** ([`mcp-telegram`](https://github.com/beautyfree/mcp-telegram)) | Any MCP client, hosted runtimes, web apps without a shell | ~12,700 tokens always | covered by tool schemas |
 | **Skill bundle** (this package) | Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf | **0 tokens** (description-matched) | ~250 tokens on activation |
 
-The two are complementary. Skill bundle includes a `mcp.json` so clients that support both modes can opt into the MCP server inside a single plugin install.
+The two packages are independent. The Cursor plugin layout in `telegram-skill` ships an optional `mcp.json` that wires `mcp-telegram` in for clients that want the always-on tool surface alongside the skill — use it if you want both transports.
 
 ## What it does
 
@@ -54,7 +54,7 @@ npm i -g telegram-skill           # installs tg-skill + telegram-skill bins
 tg-skill login                    # opens a browser → phone → code → 2FA
 ```
 
-Session persists at `~/.mcp-telegram/` (shared with `mcp-telegram` if you also use the MCP server). You need API credentials from [my.telegram.org/apps](https://my.telegram.org/apps); export them once:
+Session persists at `~/.mcp-telegram/` (sic — the directory name is shared on-disk format with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram), so users with both installed sign in once). You need API credentials from [my.telegram.org/apps](https://my.telegram.org/apps); export them once:
 
 ```bash
 export TELEGRAM_API_ID=123456
@@ -144,14 +144,13 @@ tg-skill participants <peer> [--limit N] [--search X]
 tg-skill invoke <Namespace.Class> --params '{...}'
 
 tg-skill install [client] | uninstall [client] | doctor
-tg-skill mcp                     # delegates to mcp-telegram (full MCP surface)
 ```
 
 Run `tg-skill help` for the full reference.
 
 ## How it works
 
-1. **Session** — `tg-skill login` opens a tiny local browser page that walks you through phone → SMS → 2FA. The session is stored at `~/.mcp-telegram/`. Re-used by both `mcp-telegram` and `tg-skill`.
+1. **Session** — `tg-skill login` opens a tiny local browser page that walks you through phone → SMS → 2FA. The session is stored at `~/.mcp-telegram/`. The directory name is shared with the [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) MCP server so users running both transports sign in once.
 
 2. **Skill bundle** — a single `SKILL.md` with YAML frontmatter (`name`, `description`) plus 5 lazy-loaded reference docs under `references/`:
    - `cli-reference.md` — every command + flag
@@ -160,7 +159,7 @@ Run `tg-skill help` for the full reference.
    - `moderation.md` — ban/restrict/promote via raw MTProto
    - `outreach.md` — careful cold/warm DM campaigns with caps + cooldowns
 
-3. **CLI** — `tg-skill` is a thin JSON-first wrapper. Built on [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram), imports its Telegram client + helpers.
+3. **CLI** — `tg-skill` is a thin JSON-first wrapper around [gram.js](https://github.com/gram-js/gramjs). Standalone — no MCP server in the loop.
 
 4. **Installer** — `tg-skill install` detects each client by `$HOME` path (e.g. `~/.claude`, `~/.agents`, `~/.cursor`) and writes the skill bundle in the layout that client expects. Cursor gets a full plugin with `.cursor-plugin/plugin.json` + `skills/` + `mcp.json` so the same install enables both transports.
 
@@ -184,11 +183,11 @@ Run `tg-skill help` for the full reference.
 
 **Is my data going somewhere?** The session lives in `~/.mcp-telegram/` on your machine. No third-party server. Treat that directory like a password.
 
-**What about real-time push notifications?** The skill/CLI path is request-response. For long-poll / streaming, switch to the MCP server (`tg-skill mcp` or the `mcp-telegram` package).
+**What about real-time push notifications?** The skill/CLI path is request-response. For long-poll / streaming, run [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) as the MCP server (which supports update subscriptions through its tool surface).
 
 **Does it work with the Bot API token?** No — this is MTProto, not the Bot API.
 
-**Does mcp-telegram still work?** Yes, unchanged. `telegram-skill` builds on it. Use whichever transport fits your client.
+**Does mcp-telegram still work?** Yes, unchanged. The two packages are independent — use whichever transport fits your client (or both, the session store is shared).
 
 ## Related
 

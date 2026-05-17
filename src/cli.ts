@@ -1,25 +1,23 @@
 #!/usr/bin/env node
 /**
  * tg-skill — Telegram CLI that backs the universal `telegram` agent-skill
- * bundle. Distributed separately from `mcp-telegram` but reuses its core
- * MTProto layer (session store, browser login, helpers) via npm imports.
+ * bundle. Standalone: talks to Telegram via gram.js directly, no MCP
+ * server in the loop.
  *
  * Design goals:
  *   • JSON-first output (parseable by skills/agents)
- *   • Reuses ~/.mcp-telegram session — interoperable with the MCP server
+ *   • Session stored at ~/.mcp-telegram (shared on-disk format with the
+ *     mcp-telegram MCP server, so users with both installed sign in once)
  *   • Zero context cost when idle — the agent only loads the skill markdown
  *     when it matches the user's intent
- *
- * To run the underlying MCP server: `tg-skill mcp` (delegates to the
- * `mcp-telegram` package). The legacy `mcp-telegram` bin still works.
  */
 import { config as dotenvConfig } from 'dotenv';
 import { Api } from 'telegram';
 import bigInt from 'big-integer';
 
-import { listAccounts } from 'mcp-telegram/state';
-import { clientForAccount, logoutAccount, TelegramAuthError } from 'mcp-telegram/client';
-import { runBrowserLogin } from 'mcp-telegram/auth-browser';
+import { listAccounts } from './state.js';
+import { clientForAccount, logoutAccount, TelegramAuthError } from './telegram.js';
+import { runBrowserLogin } from './auth-browser.js';
 import {
   parsePeer,
   resolveAccountId,
@@ -32,8 +30,8 @@ import {
   ensureDownloadsDir,
   resolveApiClass,
   hydrateApiParams,
-} from 'mcp-telegram/helpers';
-import { logger } from 'mcp-telegram/logger';
+} from './helpers.js';
+import { logger } from './logger.js';
 import { runInstall, runUninstall, runDoctor } from './install.js';
 
 dotenvConfig();
@@ -608,13 +606,9 @@ const commands: CmdGroup = {
     await runDoctor();
   },
 
-  // ── mcp server (delegates to mcp-telegram package) ──────────────
-  mcp: async () => {
-    // Spawn the mcp-telegram bin so this process exits cleanly.
-    // We don't import its entry module — the MCP server attaches to
-    // stdio and we want it to own the process from here on.
-    await import('mcp-telegram');
-  },
+  // No `mcp` subcommand here — if you need the always-on MCP server,
+  // install `mcp-telegram` separately. The skill path is intentionally
+  // CLI-only so it can stay lightweight.
 
   help: async () => {
     printHelp();
@@ -683,9 +677,6 @@ PLUGIN INSTALL
   uninstall [client]                  Remove skill bundle
   doctor                              Show detected clients + install state
 
-SERVER
-  mcp                              Run the MCP stdio server (same as 'mcp-telegram')
-
 OUTPUT
   All commands print JSON to stdout. Errors go to stderr as {"ok": false, "error": "..."}.
 
@@ -753,7 +744,7 @@ dispatch(process.argv.slice(2))
   .then(() => {
     // The MCP entry runs forever; everything else should exit cleanly so
     // gram.js's persistent WebSocket doesn't keep the process alive.
-    if (process.argv[2] !== 'mcp' && process.argv[2] !== 'login') process.exit(0);
+    if (process.argv[2] !== 'login') process.exit(0);
   })
   .catch((err) => {
     fail((err as Error).message ?? String(err));
