@@ -1,0 +1,22 @@
+{
+  "name": "telegram-skill",
+  "owner": {
+    "name": "Alexey Elizarov",
+    "url": "https://github.com/beautyfree"
+  },
+  "metadata": {
+    "description": "Telegram for Claude Code — read dialogs, search globally, send/edit/react, tag Saved Messages (Premium), moderate channels. Lazy-loaded skill bundle: ~50× lower context cost than an always-on MCP server."
+  },
+  "plugins": [
+    {
+      "name": "telegram",
+      "source": "./",
+      "description": "Telegram agent skill — operate a real Telegram user account via the tg-skill CLI. Reads dialogs, searches messages, sends/edits/forwards, tags Saved Messages, moderates channels. Triggers on mentions of Telegram, чаты, каналы, Saved Messages, or @channel-style peer names.",
+      "version": "1.0.0",
+      "category": "communication",
+      "tags": ["telegram", "messaging", "communication", "saved-messages", "skill"],
+      "homepage": "https://github.com/beautyfree/telegram-skill",
+      "license": "MIT"
+    }
+  ]
+}

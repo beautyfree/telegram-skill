@@ -1,0 +1,6 @@
+{
+  "name": "telegram",
+  "version": "1.0.0",
+  "description": "Telegram agent skill — operate a real Telegram user account via the tg-skill CLI.",
+  "skills": "./skills"
+}

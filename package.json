@@ -1,0 +1,106 @@
+{
+  "name": "telegram-skill",
+  "version": "1.0.0",
+  "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~50× lower context cost than an always-on MCP server. Ships the `tg-skill` CLI (JSON-first wrapper around Telegram MTProto), a universal skill bundle, and one-command install for every major agent client. Built on mcp-telegram for the underlying MTProto layer. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
+  "type": "module",
+  "main": "dist/cli.js",
+  "types": "dist/cli.d.ts",
+  "author": "Alexey Elizarov <alex.elizarov1@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/beautyfree/telegram-skill.git"
+  },
+  "homepage": "https://github.com/beautyfree/telegram-skill#readme",
+  "bugs": {
+    "url": "https://github.com/beautyfree/telegram-skill/issues"
+  },
+  "keywords": [
+    "telegram",
+    "telegram-skill",
+    "telegram-agent",
+    "telegram-cli",
+    "telegram-api",
+    "telegram-mtproto",
+    "telegram-user",
+    "telegram-search",
+    "telegram-saved-messages",
+    "saved-messages-tags",
+    "telegram-tags",
+    "agent-skill",
+    "agent-skills",
+    "skill-md",
+    "skill",
+    "skills",
+    "claude-code-skill",
+    "claude-skills",
+    "codex-skill",
+    "codex-skills",
+    "cursor-plugin",
+    "cursor-skill",
+    "gemini-cli-skill",
+    "gemini-cli-extension",
+    "cline-skill",
+    "windsurf-skill",
+    "goose-recipe",
+    "ai-agent",
+    "ai-agents",
+    "ai-tools",
+    "agent",
+    "agents",
+    "llm",
+    "llm-tools",
+    "claude",
+    "claude-code",
+    "claude-desktop",
+    "anthropic",
+    "openai",
+    "codex",
+    "cursor",
+    "gemini",
+    "cline",
+    "windsurf",
+    "goose",
+    "lazy-loading",
+    "progressive-disclosure",
+    "context-efficient",
+    "low-token",
+    "mcp",
+    "mcp-telegram"
+  ],
+  "files": [
+    "dist",
+    "skills",
+    ".claude-plugin",
+    ".cursor-plugin",
+    "gemini-extension.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "cli": "node dist/cli.js",
+    "dev": "tsx watch src/cli.ts",
+    "measure-tokens": "node scripts/measure-tokens.mjs",
+    "prepublishOnly": "npm run build && chmod +x dist/cli.js"
+  },
+  "dependencies": {
+    "mcp-telegram": "file:../mcp-telegram",
+    "big-integer": "^1.6.52",
+    "dotenv": "^16.3.1",
+    "telegram": "^2.19.10"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "bin": {
+    "tg-skill": "dist/cli.js",
+    "telegram-skill": "dist/cli.js"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
