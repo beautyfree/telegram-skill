@@ -12,7 +12,7 @@ tg-skill participants @channel --search "spam"   # filter by name
 
 ## Mutating ops — via MCP
 
-If you need full moderation, switch the agent to the MCP server: `tg-skill mcp` and use:
+If you need full moderation, switch the agent to the `mcp-telegram` MCP server and use:
 
 - `ban_user`, `unban_user`, `restrict_user`
 - `promote_admin`, `demote_admin`

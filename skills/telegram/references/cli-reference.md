@@ -83,7 +83,7 @@ tg-skill info <peer>
 tg-skill participants <peer> [--limit N] [--search X]
 ```
 
-For full channel admin/moderation surface (ban, restrict, promote, invite-link management, slow-mode, etc.) — use the MCP server (`tg-skill mcp`) or the raw bridge below. CLI MVP covers read-only inspection.
+For full channel admin/moderation surface (ban, restrict, promote, invite-link management, slow-mode, etc.) — use the MCP server (`mcp-telegram`) or the raw bridge below. CLI MVP covers read-only inspection.
 
 ## Raw MTProto
 
@@ -100,22 +100,22 @@ tg-skill invoke channels.GetFullChannel --params '{"channel": "@telegram"}'
 
 Entity-like string fields (`peer`, `channel`, `user`, `bot`, `chat`, `fromPeer`, `toPeer`) are auto-hydrated from `@username` / numeric / `me`.
 
-## Plugin install
+## Skill distribution (not handled by this CLI)
+
+`tg-skill` only talks to Telegram. To install or update this skill in your
+agent, use the universal installer or your agent's native command:
 
 ```
-tg-skill install                 # auto-detect Claude Code + Codex CLI
-tg-skill install claude          # specific
-tg-skill install codex
-tg-skill install cursor          # generates .mdc adapter in ./.cursor/rules
-tg-skill install all
-tg-skill uninstall [client]
-tg-skill doctor                  # JSON: which clients detected, where installed
+npx skills add beautyfree/telegram-skill -a <agent> -g
+# e.g.
+npx skills add beautyfree/telegram-skill -a claude-code -g
 ```
+
+See the project README for the per-agent native commands.
 
 ## MCP server
 
-```
-tg-skill mcp                     # same as legacy `mcp-telegram` bin
-```
-
-Use when an agent client doesn't support skills (web Apps SDK, hosted runtimes without Bash).
+`tg-skill` doesn't ship a `mcp` subcommand. For the always-on tool-call
+transport, install [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram)
+separately — it shares the same `~/.telegram-agent/` session store so one
+login covers both.

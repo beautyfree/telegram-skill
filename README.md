@@ -55,9 +55,9 @@ Session persists at `~/.telegram-agent/`. Shared with [`mcp-telegram`](https://g
 
 ### 2. Drop the skill into your agent
 
-Pick whichever method you prefer — all three end with the same `SKILL.md` in the right place on disk.
+Pick whichever method you prefer — both end with the same `SKILL.md` in the right place on disk.
 
-#### Option A — `npx skills` (universal, 54+ agents) **[recommended]**
+#### Option A — `npx skills add` (universal, 54+ agents) **[recommended]**
 
 [`npx skills`](https://github.com/vercel-labs/skills) is the de-facto installer for the universal SKILL.md format. It supports 54 agent clients (`claude-code`, `codex`, `cursor`, `gemini-cli`, `cline`, `windsurf`, `opencode`, `continue`, `roo`, `goose`, `aider-desk`, `kilo`, `warp`, …).
 
@@ -76,20 +76,7 @@ Flags worth knowing:
 | `-y, --yes` | Skip confirmation prompts (CI-friendly). |
 | `--copy` | Copy files instead of symlinking (symlink is the default — updates flow through). |
 
-#### Option B — `tg-skill install` (bundled with this package)
-
-The CLI you just installed also bundles its own installer. Same SKILL.md, narrower agent list (the 6 we test against), but it knows how to write Cursor's native plugin layout (with `mcp.json` for the optional MCP fallback).
-
-```bash
-tg-skill install            # auto-detect every supported agent on this machine
-tg-skill install claude     # ~/.claude/skills/telegram/
-tg-skill install cursor     # ~/.cursor/plugins/local/telegram/ (full plugin)
-tg-skill install all
-tg-skill doctor             # JSON: which clients detected, where installed
-tg-skill uninstall [client]
-```
-
-#### Option C — your agent's native command
+#### Option B — your agent's native command
 
 Every supported agent has a native plugin/skill install command. Use it if you prefer the standard client UX or want the agent's own update flow. Click through for the exact incantation:
 
@@ -133,7 +120,7 @@ In Cursor:
 /add-plugin
 ```
 
-Point it at this repo. Or, for a fully wired install (skill + optional MCP server in one), run `tg-skill install cursor` which writes the proper `.cursor-plugin/plugin.json` + `skills/telegram/` + `mcp.json` layout.
+Point it at this repo (`beautyfree/telegram-skill`). The repo already contains a `.cursor-plugin/plugin.json` so Cursor installs it as a native plugin with the skill and the optional MCP server (`mcp.json`) wired in.
 </details>
 
 <details>
@@ -153,7 +140,7 @@ Picks up `gemini-extension.json` from the repo and wires both the skill and the 
 npx skills add beautyfree/telegram-skill -a cline -g
 ```
 
-Or `tg-skill install cline` to drop `~/.clinerules/telegram/`. Cline's rules engine reads it on every prompt and only follows the body when the description matches.
+Drops the bundle under `~/.clinerules/telegram/`. Cline's rules engine reads it on every prompt and only follows the body when the description matches.
 </details>
 
 <details>
@@ -163,7 +150,7 @@ Or `tg-skill install cline` to drop `~/.clinerules/telegram/`. Cline's rules eng
 npx skills add beautyfree/telegram-skill -a windsurf
 ```
 
-Project-scoped — run inside each project where you want Telegram available. `tg-skill install windsurf` does the same: writes `./.windsurf/rules/telegram.md` with `trigger: model_decision`.
+Project-scoped — run inside each project where you want Telegram available. Writes `./.windsurf/rules/telegram.md` with `trigger: model_decision`.
 </details>
 
 <details>
@@ -197,7 +184,6 @@ The agent reads `SKILL.md`, shells out to `tg-skill <command>`, parses JSON, res
 | **Saved Messages** | `saved tags`, `saved tag-rename`, `saved search`, `saved dialogs`, `saved history`, `saved delete-history`, `saved toggle-pin` |
 | **Channels** | `info`, `participants` |
 | **Raw MTProto** | `invoke <Namespace.Class> --params '{...}'` |
-| **Plugin** | `install`, `uninstall`, `doctor` |
 
 ```bash
 tg-skill dialogs --limit 10 | jq '.[] | {title, unreadCount}'
@@ -232,7 +218,7 @@ Run `tg-skill help` for the full flag reference.
 | --- | --- | --- | --- |
 | Claude Code | `npx skills add … -a claude-code -g` or `/plugin marketplace add` | Universal SKILL.md | `~/.claude/skills/telegram/` |
 | Codex CLI | `npx skills add … -a codex -g` | Universal SKILL.md | `~/.agents/skills/telegram/` |
-| Cursor | `tg-skill install cursor` (full plugin) or `/add-plugin` | Native plugin | `~/.cursor/plugins/local/telegram/` |
+| Cursor | `/add-plugin` (or `npx skills add … -a cursor`) | Native plugin | `~/.cursor/plugins/local/telegram/` |
 | Gemini CLI | `gemini extensions install …` | Extension | `~/.gemini/skills/telegram/` |
 | Cline | `npx skills add … -a cline -g` | Rule pack | `~/.clinerules/telegram/` |
 | Windsurf | `npx skills add … -a windsurf` (project) | Rule | `.windsurf/rules/telegram.md` |

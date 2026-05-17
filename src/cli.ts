@@ -32,7 +32,6 @@ import {
   hydrateApiParams,
 } from './helpers.js';
 import { logger } from './logger.js';
-import { runInstall, runUninstall, runDoctor } from './install.js';
 
 dotenvConfig();
 
@@ -593,22 +592,13 @@ const commands: CmdGroup = {
     });
   },
 
-  // ── installer ───────────────────────────────────────────────────
-  install: async (args: string[]) => {
-    const target = args[0];
-    await runInstall(target);
-  },
-  uninstall: async (args: string[]) => {
-    const target = args[0];
-    await runUninstall(target);
-  },
-  doctor: async () => {
-    await runDoctor();
-  },
-
-  // No `mcp` subcommand here — if you need the always-on MCP server,
-  // install `mcp-telegram` separately. The skill path is intentionally
-  // CLI-only so it can stay lightweight.
+  // Skill-bundle distribution is intentionally handled by external
+  // tooling — `npx skills add beautyfree/telegram-skill -a <agent> -g`
+  // (https://github.com/vercel-labs/skills) for the universal path, or
+  // each agent's native plugin command. Not the binary's job.
+  //
+  // Likewise no `mcp` subcommand here. For the always-on MCP server,
+  // install the `mcp-telegram` package separately.
 
   help: async () => {
     printHelp();
@@ -672,10 +662,9 @@ CHANNELS
 RAW
   invoke <Namespace.Class> --params '{...}'   Call any MTProto method
 
-PLUGIN INSTALL
-  install [claude|codex|cursor|all]   Install skill bundle (auto-detect if omitted)
-  uninstall [client]                  Remove skill bundle
-  doctor                              Show detected clients + install state
+SKILL DISTRIBUTION (not handled by this CLI)
+  Use \`npx skills add beautyfree/telegram-skill -a <agent> -g\` for the
+  universal path, or your agent's native plugin command. See the README.
 
 OUTPUT
   All commands print JSON to stdout. Errors go to stderr as {"ok": false, "error": "..."}.

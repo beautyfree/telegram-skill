@@ -99,8 +99,7 @@
     "node": ">=20.0.0"
   },
   "bin": {
-    "tg-skill": "dist/cli.js",
-    "telegram-skill": "dist/cli.js"
+    "tg-skill": "dist/cli.js"
   },
   "publishConfig": {
     "access": "public"
