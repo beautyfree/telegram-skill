@@ -1,109 +1,134 @@
-# telegram-agent — Full CLI reference
+# `telegram-agent` — full CLI reference
 
-Every command prints JSON to stdout. Errors → stderr as `{"ok": false, "error": "..."}` and exit code != 0. Add `--account <id>` for multi-account installs.
+Every command prints JSON to stdout. Errors → stderr as `{"ok": false, "error": "..."}` and exit code 1. Add `--account <id>` for multi-account installs. `--no-daemon` forces in-process execution.
 
 ## Sessions
 
 | Command | Notes |
 |---|---|
-| `telegram-agent login` | Opens a browser tab for phone → code → 2FA. Persists session to `~/.telegram-agent/`. |
-| `telegram-agent logout <accountId>` | Drops the session locally + revokes server-side. |
-| `telegram-agent accounts` | `[{ id, phone, username }]`. |
-| `telegram-agent me` | Returns the authenticated user record. |
+| `telegram-agent login` | Browser tab for phone → code → 2FA. Persists at `~/.telegram-agent/`. |
+| `telegram-agent logout <accountId>` | Drop session locally + revoke server-side. |
+| `telegram-agent accounts` | `[{ id, phone, username }]` |
+| `telegram-agent me` | Authenticated user record. |
+| `telegram-agent info <peer>` | Universal resolver — accepts `@username`, id, phone, t.me link. Returns `{ entity, dialog? }`. |
 
-## Dialogs
+## Chats
 
 ```
-telegram-agent dialogs [--unread] [--archived] [--folder N] [--ignore-pinned] [--limit N]
-telegram-agent search-dialogs <query> [--limit N]
-telegram-agent resolve <@username|id>
+chats list      [--unread] [--archived] [--folder N] [--ignore-pinned]
+                [--type user|bot|group|channel] [--offset-date T] [--limit N]
+chats search    "query" [--type ...] [--global] [--archived] [--limit N]
+chats members   <chat>  [--limit N] [--query t] [--type bot|admin|recent]
 ```
 
-Output shape (dialogs): `[{ id, name, title, unreadCount, date, pinned, archived }]`
+`--global` switches `chats search` to public Telegram (returns channels you're not in yet).
 
 ## Messages — read
 
 ```
-telegram-agent messages <peer> [--limit N]
-telegram-agent search <peer> [query]
+msg list <chat>
+  [--limit N] [--offset-id N] [--min-id N] [--since T]
+  [--query t] [--from <user>]
   [--filter photos|videos|photoVideo|documents|music|voice|roundVideo|roundVoice|gif|url|geo|contacts|chatPhotos|myMentions|pinned]
-  [--from-user @user] [--min-date <unixSec>] [--max-date <unixSec>]
-  [--limit N] [--reverse]
-telegram-agent search-global <query> [--filter X] [--min-date T] [--max-date T] [--limit N]
-telegram-agent get <peer> <id[,id...]>
+  [--auto-download] [--auto-transcribe] [--full] [--reverse]
+
+msg get <chat> <id[,id...]>
+
+msg search "query"
+  [--chat <peer>] [--from <user>] [--filter ...]
+  [--since T] [--until T] [--context N] [--limit N]
+  [--auto-download] [--auto-transcribe] [--full]
 ```
 
-## Messages — write
+`--auto-download` saves photos / stickers / voice notes alongside the message JSON (adds `downloadPath`). `--auto-transcribe` requests server-side transcription for voice / round-video notes (Premium; adds `transcription`). `--context N` returns `{ hit, context: [...] }` rows with N before + hit + N after.
+
+Long bodies truncate at 500 chars with `truncated: true`. `--full` disables.
+
+## Actions — write
 
 ```
-telegram-agent send <peer> <text> [--reply-to N] [--silent] [--parse-mode markdown|html]
-telegram-agent edit <peer> <id> <text> [--parse-mode markdown|html]
-telegram-agent delete <peer> <id[,id...]> [--revoke false]
-telegram-agent forward --from <peer> --to <peer> --ids 1,2,3 [--silent]
-telegram-agent pin <peer> <id> [--notify] [--pm-one-side]
-telegram-agent unpin <peer> <id>
-telegram-agent react <peer> <id> <emoji...> [--custom-emoji-ids id,id] [--big] [--add-to-recent]
-telegram-agent mark-read <peer> [--max-id N]
+action send       <chat> [text]              [--reply-to N] [--silent] [--md|--html]
+                                              [--no-preview] [--stdin | --file PATH]
+action edit       <chat> <msgId> [text]      [--md|--html] [--stdin | --file PATH]
+action delete     <chat> <id...>             [--revoke false]
+action forward    <from> <to> <id...>        [--silent]
+action pin        <chat> <msgId>             [--notify] [--pm-one-side]
+action unpin      <chat> <msgId | --all>
+action react      <chat> <msgId> <emoji>     [--remove] [--big]
+                                              [--custom-emoji-ids id,id]
+                                              [--add-to-recent]
+action mark-read  <chat>                     [--max-id N]
+action click      <chat> <msgId> <button>    [--silent]
 ```
 
-`react` with no emoji clears existing reactions. Multiple emoji = multi-react (Premium).
+`action send` / `edit` body sources, in priority: `--file <path>` → `--stdin` → positional. Default is plain text — no implicit markdown parsing.
+
+`action react` with no `<emoji>` clears all reactions on the message. `--remove <emoji>` drops only the specified tag.
+
+`action click` references a button by 1-based index across the keyboard (left-to-right, top-to-bottom) or by exact label text.
 
 ## Media
 
 ```
-telegram-agent send-file <peer> <path-or-url...>
-  [--caption X] [--voice] [--as-document] [--silent] [--reply-to N]
-telegram-agent download <peer> <messageId>
+media send     <chat> <path-or-url...>       [--caption X] [--voice]
+                                              [--as-document] [--silent] [--reply-to N]
+media download <chat> <msgId>                [--out PATH]
 ```
 
-`send-file` accepts multiple paths/URLs — they're sent as one album (max 10). HTTPS URLs are fetched into a temp file first.
+`media send` accepts multiple paths/URLs — sent as one album (max 10). HTTPS URLs are fetched into a temp file first.
 
-`download` writes the file to `~/.telegram-agent/downloads/` (override via `TELEGRAM_AGENT_DOWNLOADS`) and prints `{"path": "..."}`.
+`media download` saves to `~/.telegram-agent/downloads/` by default; override per-call with `--out PATH` or globally with `TELEGRAM_AGENT_DOWNLOADS`.
 
-## Saved Messages
-
-```
-telegram-agent saved tags
-telegram-agent saved tag-rename <emoji> [title]      # omit title to clear
-telegram-agent saved default-tags
-telegram-agent saved search [--tag emoji ...] [--tag-custom id,id] [--query X]
-                    [--saved-peer P] [--limit N] [--min-date T] [--max-date T]
-telegram-agent saved dialogs [--exclude-pinned] [--limit N]
-telegram-agent saved history <peer> [--offset-id N] [--limit N]
-telegram-agent saved delete-history <peer> [--max-id N] [--min-date T] [--max-date T]
-telegram-agent saved toggle-pin <peer> [--pinned true|false]
-```
-
-Tagging a Saved message = react on it: `telegram-agent react me <msg-id> 🧠`. Then `telegram-agent saved search --tag 🧠` returns everything tagged that way.
-
-## Channels
+## Saved Messages (Premium reaction-tags)
 
 ```
-telegram-agent info <peer>
-telegram-agent participants <peer> [--limit N] [--search X]
+saved tags                                    List tag reactions + custom titles
+saved tag-rename <emoji> [title]              Set/clear the custom title
+saved default-tags                            Server-suggested emoji set
+saved search [--tag emoji ...] [--tag-custom id,id]
+             [--query X] [--saved-peer P] [--since T] [--until T] [--limit N]
+saved dialogs [--exclude-pinned] [--limit N]
+saved history <peer> [--offset-id N] [--limit N]
+saved delete-history <peer> [--max-id N] [--min-date T] [--max-date T]
+saved toggle-pin <peer> [--pinned true|false]
 ```
 
-For full channel admin/moderation surface (ban, restrict, promote, invite-link management, slow-mode, etc.) — use the MCP server (`mcp-telegram`) or the raw bridge below. CLI MVP covers read-only inspection.
+Tagging a Saved message = `action react me <msg-id> <emoji>`. Then `saved search --tag <emoji>` retrieves everything tagged that way.
+
+## Streaming
+
+```
+listen <chat> [--filter ...] [--since T]
+```
+
+Subscribes to `NewMessage` for the chat. Writes one JSON line per event (`{event: "message", id, date, text, ...}`). Runs until Ctrl-C — the daemon doesn't proxy this command, it stays in-process so the WebSocket lifetime is bounded by the CLI.
+
+## Operations
+
+```
+doctor                  Health check: creds, session, state dir, daemon, account count.
+daemon start            Spawn the background gram.js client (auto-spawns on first
+                        real command if missing).
+daemon stop             SIGTERM the daemon.
+daemon status           { running, pid, socket, idleTimeoutMs }
+```
 
 ## Raw MTProto
 
 ```
-telegram-agent invoke <Namespace.Class> --params '<json>'
+invoke <Namespace.Class> --params '<json>'
 ```
 
 Examples:
 
-```
+```bash
 telegram-agent invoke messages.GetStickers --params '{"emoticon": "👍", "hash": "0"}'
 telegram-agent invoke channels.GetFullChannel --params '{"channel": "@telegram"}'
 ```
 
-Entity-like string fields (`peer`, `channel`, `user`, `bot`, `chat`, `fromPeer`, `toPeer`) are auto-hydrated from `@username` / numeric / `me`.
+Entity-like string fields (`peer`, `channel`, `user`, `bot`, `chat`, `fromPeer`, `toPeer`) auto-hydrated from `@username` / numeric / `me`.
 
 ## Skill distribution (not handled by this CLI)
-
-`telegram-agent` only talks to Telegram. To install or update this skill in your
-agent, use the universal installer or your agent's native command:
 
 ```
 npx skills add beautyfree/telegram-agent -a <agent> -g
@@ -111,11 +136,24 @@ npx skills add beautyfree/telegram-agent -a <agent> -g
 npx skills add beautyfree/telegram-agent -a claude-code -g
 ```
 
-See the project README for the per-agent native commands.
+See the project README for per-agent native commands.
 
 ## MCP server
 
-`telegram-agent` doesn't ship a `mcp` subcommand. For the always-on tool-call
-transport, install [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram)
-separately — it shares the same `~/.telegram-agent/` session store so one
-login covers both.
+`telegram-agent` doesn't ship a `mcp` subcommand. For the always-on tool-call transport, install [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) separately — it shares the same `~/.telegram-agent/` session store, so one login covers both.
+
+## Back-compat aliases
+
+Old flat command names still resolve to their new noun-verb leaves:
+
+| Old | New |
+|---|---|
+| `dialogs` | `chats list` |
+| `search-dialogs` | `chats search` |
+| `participants` | `chats members` |
+| `resolve` | `info` (richer output — entity + dialog) |
+| `messages` | `msg list` |
+| `search` / `search-global` | `msg search` (`--chat <peer>` to narrow) |
+| `get` | `msg get` |
+| `send`, `edit`, `delete`, `forward`, `pin`, `unpin`, `react`, `mark-read` | `action <verb>` |
+| `send-file`, `download` | `media <verb>` |

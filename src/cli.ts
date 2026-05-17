@@ -1,46 +1,30 @@
 #!/usr/bin/env node
 /**
- * telegram-agent — Telegram CLI that backs the universal `telegram` agent-skill
- * bundle. Standalone: talks to Telegram via gram.js directly, no MCP
- * server in the loop.
+ * telegram-agent CLI entry. Three responsibilities:
  *
- * Design goals:
- *   • JSON-first output (parseable by skills/agents)
- *   • Session stored at ~/.telegram-agent (shared on-disk format with the
- *     mcp-telegram MCP server, so users with both installed sign in once)
- *   • Zero context cost when idle — the agent only loads the skill markdown
- *     when it matches the user's intent
+ *   1. Parse argv into (positional[], flags{}).
+ *   2. Walk the nested command table to resolve the verb.
+ *   3. Either ship the request to the daemon (fast path) or fall back to
+ *      running the command in-process (cold path, ~2s connect penalty).
+ *
+ * Everything else lives in src/commands/* and src/daemon/*. Keep this
+ * file under 200 lines.
  */
 import { config as dotenvConfig } from 'dotenv';
-import { Api } from 'telegram';
-import bigInt from 'big-integer';
 
-import { listAccounts } from './state.js';
-import { clientForAccount, logoutAccount, TelegramAuthError } from './telegram.js';
-import { runBrowserLogin } from './auth-browser.js';
-import {
-  parsePeer,
-  resolveAccountId,
-  safeClient,
-  serializeMessage,
-  serializeEntity,
-  safeStringify,
-  MESSAGE_FILTER,
-  resolveFileArg,
-  ensureDownloadsDir,
-  resolveApiClass,
-  hydrateApiParams,
-} from './helpers.js';
 import { logger } from './logger.js';
+import { TelegramAuthError } from './telegram.js';
+import { commandTable } from './commands/index.js';
+import type { Cmd, ParsedArgs } from './commands/_shared.js';
+import { fail, print } from './commands/_shared.js';
+import { sendToDaemon } from './daemon/client.js';
+import { isDaemonRunning } from './daemon/socket.js';
 
 dotenvConfig();
 
-// ─── arg parsing ─────────────────────────────────────────────────────
+const VERSION = '1.0.0';
 
-interface ParsedArgs {
-  positional: string[];
-  flags: Record<string, string | boolean>;
-}
+// ─── arg parsing ─────────────────────────────────────────────────────
 
 function parseArgs(argv: string[]): ParsedArgs {
   const positional: string[] = [];
@@ -72,649 +56,163 @@ function parseArgs(argv: string[]): ParsedArgs {
   return { positional, flags };
 }
 
-function flagStr(flags: ParsedArgs['flags'], key: string): string | undefined {
-  const v = flags[key];
-  if (typeof v === 'string') return v;
-  return undefined;
-}
-
-function flagNum(flags: ParsedArgs['flags'], key: string): number | undefined {
-  const v = flagStr(flags, key);
-  return v === undefined ? undefined : Number(v);
-}
-
-function flagBool(flags: ParsedArgs['flags'], key: string): boolean | undefined {
-  const v = flags[key];
-  if (v === undefined) return undefined;
-  if (typeof v === 'boolean') return v;
-  const s = v.toLowerCase();
-  return s === 'true' || s === '1' || s === 'yes';
-}
-
-function flagList(flags: ParsedArgs['flags'], key: string): string[] | undefined {
-  const v = flagStr(flags, key);
-  if (v === undefined) return undefined;
-  return v
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function flagNumList(flags: ParsedArgs['flags'], key: string): number[] | undefined {
-  const v = flagList(flags, key);
-  return v?.map((s) => Number(s));
-}
-
-// ─── output ──────────────────────────────────────────────────────────
-
-function print(value: any): void {
-  process.stdout.write(safeStringify(value) + '\n');
-}
-
-function ok(extra?: Record<string, any>): void {
-  print({ ok: true, ...(extra ?? {}) });
-}
-
-function fail(message: string, code = 1): never {
-  process.stderr.write(JSON.stringify({ ok: false, error: message }) + '\n');
-  process.exit(code);
-}
-
-// ─── peer + entity helpers ───────────────────────────────────────────
-
-function need(args: string[], i: number, name: string): string {
-  if (args[i] === undefined) fail(`Missing argument: <${name}>`);
-  return args[i];
-}
-
-async function inputPeerOf(client: any, peer: string): Promise<any> {
-  const entity = await client.getEntity(parsePeer(peer));
-  return client.getInputEntity(entity);
-}
-
-function serializeDialog(d: any) {
-  return {
-    id: d.id?.toString(),
-    name: d.name,
-    title: d.title,
-    unreadCount: d.unreadCount,
-    date: d.date,
-    pinned: d.pinned,
-    archived: d.folderId !== undefined,
-  };
-}
-
-// ─── command table ───────────────────────────────────────────────────
-
-type Cmd = (args: string[], flags: ParsedArgs['flags']) => Promise<void>;
-interface CmdGroup {
-  [k: string]: Cmd | CmdGroup;
-}
-
-// Each command resolves an account + client itself so we can pass
-// `--account` per call without a global session.
-async function withClient<T>(
-  flags: ParsedArgs['flags'],
-  fn: (client: any, accountId: string) => Promise<T>
-): Promise<T> {
-  const accountId = resolveAccountId(flagStr(flags, 'account'));
-  const client = await safeClient(accountId);
-  return fn(client, accountId);
-}
-
-const commands: CmdGroup = {
-  // ── sessions ────────────────────────────────────────────────────
-  async login() {
-    const account = await runBrowserLogin();
-    print({ ok: true, account });
-  },
-  async logout(args: string[]) {
-    const id = need(args, 0, 'accountId');
-    await logoutAccount(id);
-    ok({ accountId: id });
-  },
-  async accounts() {
-    print(listAccounts().map((a) => ({ id: a.id, phone: a.phone, username: a.username })));
-  },
-  async me(_: string[], flags: ParsedArgs["flags"]) {
-    await withClient(flags, async (client) => {
-      const me = await client.getMe();
-      print(serializeEntity(me));
-    });
-  },
-
-  // ── dialogs ─────────────────────────────────────────────────────
-  async dialogs(_: string[], flags: ParsedArgs["flags"]) {
-    await withClient(flags, async (client) => {
-      const dialogs = await client.getDialogs({
-        archived: flagBool(flags, 'archived') ?? false,
-        ignorePinned: flagBool(flags, 'ignore-pinned') ?? false,
-        folder: flagNum(flags, 'folder'),
-        limit: flagNum(flags, 'limit') ?? 50,
-      });
-      const unread = flagBool(flags, 'unread');
-      const filtered = unread ? dialogs.filter((d: any) => (d.unreadCount ?? 0) > 0) : dialogs;
-      print(filtered.map(serializeDialog));
-    });
-  },
-  'search-dialogs': async (args: string[], flags: ParsedArgs["flags"]) => {
-    const query = need(args, 0, 'query');
-    await withClient(flags, async (client) => {
-      const q = query.toLowerCase();
-      const matches: any[] = [];
-      const limit = flagNum(flags, 'limit') ?? 20;
-      for await (const d of client.iterDialogs({})) {
-        const hay = `${d.name ?? ''} ${d.title ?? ''} ${(d.entity as any)?.username ?? ''}`.toLowerCase();
-        if (hay.includes(q)) {
-          matches.push(serializeDialog(d));
-          if (matches.length >= limit) break;
-        }
-      }
-      print(matches);
-    });
-  },
-  resolve: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const username = need(args, 0, 'username');
-    await withClient(flags, async (client) => {
-      const entity = await client.getEntity(parsePeer(username));
-      print(serializeEntity(entity));
-    });
-  },
-
-  // ── messages ────────────────────────────────────────────────────
-  messages: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    await withClient(flags, async (client) => {
-      const msgs = await client.getMessages(parsePeer(peer), { limit: flagNum(flags, 'limit') ?? 50 });
-      print(msgs.map(serializeMessage));
-    });
-  },
-  search: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const query = args[1];
-    await withClient(flags, async (client) => {
-      const opts: any = {
-        limit: flagNum(flags, 'limit') ?? 50,
-        reverse: flagBool(flags, 'reverse') ?? false,
-      };
-      if (query) opts.search = query;
-      const filter = flagStr(flags, 'filter');
-      if (filter) opts.filter = (MESSAGE_FILTER as any)[filter]?.() ?? undefined;
-      const fromUser = flagStr(flags, 'from-user');
-      if (fromUser) opts.fromUser = parsePeer(fromUser);
-      const maxDate = flagNum(flags, 'max-date');
-      if (maxDate) opts.offsetDate = maxDate;
-      const msgs = await client.getMessages(parsePeer(peer), opts);
-      const minDate = flagNum(flags, 'min-date');
-      const out = minDate ? msgs.filter((m: any) => (m.date ?? 0) >= minDate) : msgs;
-      print(out.map(serializeMessage));
-    });
-  },
-  'search-global': async (args: string[], flags: ParsedArgs["flags"]) => {
-    const query = need(args, 0, 'query');
-    await withClient(flags, async (client) => {
-      const filter = flagStr(flags, 'filter');
-      const result: any = await client.invoke(
-        new Api.messages.SearchGlobal({
-          q: query,
-          filter: filter ? (MESSAGE_FILTER as any)[filter]() : new Api.InputMessagesFilterEmpty(),
-          minDate: flagNum(flags, 'min-date') ?? 0,
-          maxDate: flagNum(flags, 'max-date') ?? 0,
-          offsetRate: 0,
-          offsetPeer: new Api.InputPeerEmpty(),
-          offsetId: 0,
-          limit: flagNum(flags, 'limit') ?? 50,
-        })
-      );
-      const chats = new Map<string, any>();
-      for (const c of result.chats ?? []) chats.set(c.id?.toString(), c);
-      for (const u of result.users ?? []) chats.set(u.id?.toString(), u);
-      const payload = (result.messages ?? []).map((m: any) => {
-        const peerId =
-          m.peerId?.userId?.toString?.() ??
-          m.peerId?.chatId?.toString?.() ??
-          m.peerId?.channelId?.toString?.();
-        const peer = peerId ? chats.get(peerId) : undefined;
-        return { ...serializeMessage(m), peer: serializeEntity(peer) };
-      });
-      print(payload);
-    });
-  },
-  get: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const ids = args
-      .slice(1)
-      .flatMap((s) => s.split(','))
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n));
-    if (ids.length === 0) fail('Provide at least one message id');
-    await withClient(flags, async (client) => {
-      const msgs = await client.getMessages(parsePeer(peer), { ids });
-      print(msgs.map(serializeMessage));
-    });
-  },
-  send: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const text = need(args, 1, 'text');
-    await withClient(flags, async (client) => {
-      const msg = await client.sendMessage(parsePeer(peer), {
-        message: text,
-        replyTo: flagNum(flags, 'reply-to'),
-        silent: flagBool(flags, 'silent'),
-        parseMode: flagStr(flags, 'parse-mode') as any,
-      });
-      print(serializeMessage(msg));
-    });
-  },
-  edit: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const id = Number(need(args, 1, 'messageId'));
-    const text = need(args, 2, 'text');
-    await withClient(flags, async (client) => {
-      const msg = await client.editMessage(parsePeer(peer), {
-        message: id,
-        text,
-        parseMode: flagStr(flags, 'parse-mode') as any,
-      });
-      print(serializeMessage(msg));
-    });
-  },
-  delete: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const ids = args
-      .slice(1)
-      .flatMap((s) => s.split(','))
-      .map((s) => Number(s.trim()))
-      .filter((n) => Number.isInteger(n));
-    if (ids.length === 0) fail('Provide at least one message id');
-    await withClient(flags, async (client) => {
-      await client.deleteMessages(parsePeer(peer), ids, { revoke: flagBool(flags, 'revoke') ?? true });
-      ok({ deleted: ids.length });
-    });
-  },
-  forward: async (_: string[], flags: ParsedArgs["flags"]) => {
-    const from = flagStr(flags, 'from');
-    const to = flagStr(flags, 'to');
-    const ids = flagNumList(flags, 'ids');
-    if (!from || !to || !ids || ids.length === 0) {
-      fail('forward requires --from <peer> --to <peer> --ids 1,2,3');
-    }
-    await withClient(flags, async (client) => {
-      const res = await client.forwardMessages(parsePeer(to!), {
-        fromPeer: parsePeer(from!),
-        messages: ids!,
-        silent: flagBool(flags, 'silent'),
-      });
-      print(Array.isArray(res) ? res.map(serializeMessage) : serializeMessage(res));
-    });
-  },
-  pin: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const id = Number(need(args, 1, 'messageId'));
-    await withClient(flags, async (client) => {
-      await client.pinMessage(parsePeer(peer), id, {
-        notify: flagBool(flags, 'notify'),
-        pmOneSide: flagBool(flags, 'pm-one-side'),
-      } as any);
-      ok();
-    });
-  },
-  unpin: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const id = Number(need(args, 1, 'messageId'));
-    await withClient(flags, async (client) => {
-      await client.unpinMessage(parsePeer(peer), id);
-      ok();
-    });
-  },
-  react: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const id = Number(need(args, 1, 'messageId'));
-    const emojis = args.slice(2);
-    const customIds = flagList(flags, 'custom-emoji-ids') ?? [];
-    if (emojis.length === 0 && customIds.length === 0) {
-      // empty reaction list = clear
-    }
-    await withClient(flags, async (client) => {
-      const inputPeer = await inputPeerOf(client, peer);
-      const reaction: any[] = [];
-      for (const e of emojis) reaction.push(new Api.ReactionEmoji({ emoticon: e }));
-      for (const cid of customIds)
-        reaction.push(new Api.ReactionCustomEmoji({ documentId: bigInt(cid) }));
-      await client.invoke(
-        new Api.messages.SendReaction({
-          peer: inputPeer,
-          msgId: id,
-          reaction,
-          big: flagBool(flags, 'big'),
-          addToRecent: flagBool(flags, 'add-to-recent'),
-        })
-      );
-      ok();
-    });
-  },
-  'mark-read': async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    await withClient(flags, async (client) => {
-      await client.markAsRead(parsePeer(peer), flagNum(flags, 'max-id'));
-      ok();
-    });
-  },
-
-  // ── media ───────────────────────────────────────────────────────
-  'send-file': async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const paths = args.slice(1);
-    if (paths.length === 0) fail('Provide at least one file path or URL');
-    await withClient(flags, async (client) => {
-      const resolved = await Promise.all(paths.map((p) => resolveFileArg(p)));
-      const file = resolved.length === 1 ? resolved[0] : resolved;
-      const msg = await client.sendFile(parsePeer(peer), {
-        file,
-        caption: flagStr(flags, 'caption'),
-        voiceNote: flagBool(flags, 'voice'),
-        forceDocument: flagBool(flags, 'as-document'),
-        silent: flagBool(flags, 'silent'),
-        replyTo: flagNum(flags, 'reply-to'),
-      } as any);
-      const out = Array.isArray(msg) ? (msg as any[]).map(serializeMessage) : serializeMessage(msg);
-      print(out);
-    });
-  },
-  download: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    const messageId = Number(need(args, 1, 'messageId'));
-    await withClient(flags, async (client, accountId) => {
-      const [message] = await client.getMessages(parsePeer(peer), { ids: [messageId] });
-      if (!message || !message.media) fail('No media on that message');
-      const dir = ensureDownloadsDir();
-      const outPath = `${dir}/${accountId}_${messageId}`;
-      const result = await client.downloadMedia(message as any, { outputFile: outPath } as any);
-      print({ path: typeof result === 'string' ? result : outPath });
-    });
-  },
-
-  // ── saved messages (premium tags) ───────────────────────────────
-  saved: {
-    async tags(_: string[], flags: ParsedArgs["flags"]) {
-      await withClient(flags, async (client) => {
-        const result: any = await client.invoke(
-          new Api.messages.GetSavedReactionTags({ hash: bigInt(0) as any })
-        );
-        print(result);
-      });
-    },
-    async 'tag-rename'(args: string[], flags: ParsedArgs["flags"]) {
-      const emoji = need(args, 0, 'emoji');
-      const title = args[1];
-      await withClient(flags, async (client) => {
-        const reaction = new Api.ReactionEmoji({ emoticon: emoji });
-        await client.invoke(new Api.messages.UpdateSavedReactionTag({ reaction, title }));
-        ok({ emoji, title: title ?? null });
-      });
-    },
-    async 'default-tags'(_: string[], flags: ParsedArgs["flags"]) {
-      await withClient(flags, async (client) => {
-        const result: any = await client.invoke(
-          new Api.messages.GetDefaultTagReactions({ hash: bigInt(0) as any })
-        );
-        print(result);
-      });
-    },
-    async search(_: string[], flags: ParsedArgs["flags"]) {
-      const tags = flagList(flags, 'tag') ?? [];
-      const customIds = flagList(flags, 'tag-custom') ?? [];
-      await withClient(flags, async (client) => {
-        const mePeer = await client.getInputEntity('me');
-        const reactions: any[] = [];
-        for (const e of tags) reactions.push(new Api.ReactionEmoji({ emoticon: e }));
-        for (const id of customIds)
-          reactions.push(new Api.ReactionCustomEmoji({ documentId: bigInt(id) }));
-        const params: any = {
-          peer: mePeer,
-          q: flagStr(flags, 'query') ?? '',
-          filter: new Api.InputMessagesFilterEmpty(),
-          minDate: flagNum(flags, 'min-date') ?? 0,
-          maxDate: flagNum(flags, 'max-date') ?? 0,
-          offsetId: 0,
-          addOffset: 0,
-          limit: flagNum(flags, 'limit') ?? 50,
-          maxId: 0,
-          minId: 0,
-          hash: bigInt(0) as any,
-        };
-        if (reactions.length) params.savedReaction = reactions;
-        const savedPeer = flagStr(flags, 'saved-peer');
-        if (savedPeer) params.savedPeerId = await inputPeerOf(client, savedPeer);
-        const result: any = await client.invoke(new Api.messages.Search(params));
-        print((result.messages ?? []).map(serializeMessage));
-      });
-    },
-    async dialogs(_: string[], flags: ParsedArgs["flags"]) {
-      await withClient(flags, async (client) => {
-        const result: any = await client.invoke(
-          new Api.messages.GetSavedDialogs({
-            excludePinned: flagBool(flags, 'exclude-pinned'),
-            offsetDate: 0,
-            offsetId: 0,
-            offsetPeer: new Api.InputPeerEmpty(),
-            limit: flagNum(flags, 'limit') ?? 50,
-            hash: bigInt(0) as any,
-          })
-        );
-        print(result);
-      });
-    },
-    async history(args: string[], flags: ParsedArgs["flags"]) {
-      const peer = need(args, 0, 'peer');
-      await withClient(flags, async (client) => {
-        const inputPeer = await inputPeerOf(client, peer);
-        const result: any = await client.invoke(
-          new Api.messages.GetSavedHistory({
-            peer: inputPeer,
-            offsetId: flagNum(flags, 'offset-id') ?? 0,
-            offsetDate: 0,
-            addOffset: 0,
-            limit: flagNum(flags, 'limit') ?? 50,
-            maxId: 0,
-            minId: 0,
-            hash: bigInt(0) as any,
-          })
-        );
-        print((result.messages ?? []).map(serializeMessage));
-      });
-    },
-    async 'delete-history'(args: string[], flags: ParsedArgs["flags"]) {
-      const peer = need(args, 0, 'peer');
-      await withClient(flags, async (client) => {
-        const inputPeer = await inputPeerOf(client, peer);
-        const result: any = await client.invoke(
-          new Api.messages.DeleteSavedHistory({
-            peer: inputPeer,
-            maxId: flagNum(flags, 'max-id') ?? 0,
-            minDate: flagNum(flags, 'min-date'),
-            maxDate: flagNum(flags, 'max-date'),
-          })
-        );
-        print(result);
-      });
-    },
-    async 'toggle-pin'(args: string[], flags: ParsedArgs["flags"]) {
-      const peer = need(args, 0, 'peer');
-      await withClient(flags, async (client) => {
-        const inputPeer = await inputPeerOf(client, peer);
-        await client.invoke(
-          new Api.messages.ToggleSavedDialogPin({
-            pinned: flagBool(flags, 'pinned'),
-            peer: new Api.InputDialogPeer({ peer: inputPeer }),
-          })
-        );
-        ok();
-      });
-    },
-  },
-
-  // ── channel info / participants ─────────────────────────────────
-  info: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    await withClient(flags, async (client) => {
-      const entity = await client.getEntity(parsePeer(peer));
-      print(serializeEntity(entity));
-    });
-  },
-  participants: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const peer = need(args, 0, 'peer');
-    await withClient(flags, async (client) => {
-      const list = await client.getParticipants(parsePeer(peer), {
-        limit: flagNum(flags, 'limit') ?? 100,
-        search: flagStr(flags, 'search'),
-      });
-      print(list.map(serializeEntity));
-    });
-  },
-
-  // ── raw bridge ──────────────────────────────────────────────────
-  invoke: async (args: string[], flags: ParsedArgs["flags"]) => {
-    const className = need(args, 0, 'Namespace.Class');
-    const ParamsRaw = flagStr(flags, 'params') ?? '{}';
-    let params: any;
-    try {
-      params = JSON.parse(ParamsRaw);
-    } catch (err) {
-      fail(`Invalid --params JSON: ${(err as Error).message}`);
-    }
-    await withClient(flags, async (client) => {
-      const Ctor: any = resolveApiClass(className);
-      const hydrated = await hydrateApiParams(client, params);
-      const inst = new Ctor(hydrated);
-      const result = await client.invoke(inst);
-      print(result);
-    });
-  },
-
-  // Skill-bundle distribution is intentionally handled by external
-  // tooling — `npx skills add beautyfree/telegram-agent -a <agent> -g`
-  // (https://github.com/vercel-labs/skills) for the universal path, or
-  // each agent's native plugin command. Not the binary's job.
-  //
-  // Likewise no `mcp` subcommand here. For the always-on MCP server,
-  // install the `mcp-telegram` package separately.
-
-  help: async () => {
-    printHelp();
-  },
-  version: async () => {
-    print({ version: VERSION });
-  },
-};
-
-const VERSION = '1.0.0';
+// ─── help ────────────────────────────────────────────────────────────
 
 const HELP = `telegram-agent ${VERSION} — Telegram CLI for AI agents
 
 USAGE
-  telegram-agent <command> [args] [--flag value] [--account <id>]
-  telegram-agent <group> <command> [args]
+  telegram-agent <noun> <verb> [args]    e.g. telegram-agent chats list --limit 10
+  telegram-agent <verb> [args]            (back-compat shorthand)
+  telegram-agent --help | --version
 
 SESSIONS
-  login                           Open browser to sign in
-  logout <accountId>              Drop a session
-  accounts                        List signed-in accounts
-  me                              Profile of current account
+  login                                Open the browser sign-in flow
+  logout <accountId>                   Drop a session
+  accounts                             List signed-in accounts
+  me                                   Current account profile
 
-DIALOGS
-  dialogs                         [--unread] [--archived] [--folder N] [--limit N]
-  search-dialogs <query>          [--limit N]
-  resolve <@username|id>          Look up an entity
+ENTITY
+  info <peer>                          Resolve @username / id / phone / t.me link → JSON
+
+CHATS
+  chats list      [--unread] [--archived] [--type user|bot|group|channel] [--limit N]
+  chats search    "query" [--type ...] [--global] [--archived] [--limit N]
+  chats members   <chat>  [--limit N] [--query t] [--type bot|admin|recent]
 
 MESSAGES
-  messages <peer>                 [--limit N]
-  search <peer> [query]           [--filter X] [--from-user U] [--min-date T] [--max-date T] [--limit N] [--reverse]
-  search-global <query>           [--filter X] [--limit N]
-  get <peer> <id[,id...]>
-  send <peer> <text>              [--reply-to N] [--silent] [--parse-mode markdown|html]
-  edit <peer> <id> <text>
-  delete <peer> <id[,id...]>      [--revoke false]
-  forward --from <peer> --to <peer> --ids 1,2,3 [--silent]
-  pin <peer> <id>                 [--notify] [--pm-one-side]
-  unpin <peer> <id>
-  react <peer> <id> <emoji...>    [--custom-emoji-ids id,id] [--big] [--add-to-recent]
-  mark-read <peer>                [--max-id N]
+  msg list   <chat> [--limit N] [--offset-id N] [--min-id N] [--since T]
+                    [--query t] [--from <user>] [--filter photo|video|...]
+                    [--auto-download] [--auto-transcribe] [--full]
+  msg get    <chat> <id[,id...]>
+  msg search "query" [--chat <peer>] [--from <user>] [--filter ...]
+                     [--since T] [--until T] [--context N] [--limit N]
+                     [--auto-download] [--auto-transcribe] [--full]
+
+ACTIONS
+  action send       <chat> [text]      [--stdin | --file PATH] [--reply-to N]
+                                       [--silent] [--md|--html] [--no-preview]
+  action edit       <chat> <msgId> [text]    [--stdin | --file PATH] [--md|--html]
+  action delete     <chat> <id...>     [--revoke false]
+  action forward    <from> <to> <id...>  (or --from/--to/--ids 1,2,3)
+  action pin        <chat> <msgId>     [--notify] [--pm-one-side]
+  action unpin      <chat> <msgId | --all>
+  action react      <chat> <msgId> <emoji>  [--remove] [--big] [--custom-emoji-ids id,id]
+  action mark-read  <chat> [--max-id N]
+  action click      <chat> <msgId> <button-index-or-text>
 
 MEDIA
-  send-file <peer> <path|url...>  [--caption X] [--voice] [--as-document] [--silent] [--reply-to N]
-  download <peer> <id>            → JSON {"path": "..."}
+  media send     <chat> <path|url...>  [--caption X] [--voice] [--as-document]
+  media download <chat> <msgId>        [--out PATH]
 
 SAVED MESSAGES (Premium reaction-tags)
-  saved tags                      List tag reactions + custom titles
-  saved tag-rename <emoji> [title]  Rename tag (omit title to clear)
-  saved default-tags              Default emoji set
-  saved search [--tag emoji ...] [--query X] [--limit N] [--saved-peer P]
-  saved dialogs                   [--exclude-pinned] [--limit N]
-  saved history <peer>            [--offset-id N] [--limit N]
-  saved delete-history <peer>     [--max-id N] [--min-date T] [--max-date T]
-  saved toggle-pin <peer>         [--pinned true|false]
+  saved tags                              List tag reactions + custom titles
+  saved tag-rename <emoji> [title]        Rename a tag (omit title = clear)
+  saved default-tags                      Server-suggested emoji set
+  saved search [--tag emoji ...] [--query X] [--saved-peer P] [--since T] [--until T] [--limit N]
+  saved dialogs [--exclude-pinned] [--limit N]
+  saved history <peer> [--offset-id N] [--limit N]
+  saved delete-history <peer> [--max-id N] [--min-date T] [--max-date T]
+  saved toggle-pin <peer> [--pinned true|false]
 
-CHANNELS
-  info <peer>
-  participants <peer>             [--limit N] [--search X]
+STREAMING
+  listen <chat> [--filter X] [--since T]    One JSON object per new message.
 
-RAW
-  invoke <Namespace.Class> --params '{...}'   Call any MTProto method
+OPS
+  doctor                              Run health checks (creds, session, daemon, etc.)
+  daemon start|stop|status            Manage the background gram.js client.
+  invoke <Namespace.Class> --params '{...}'   Raw MTProto escape hatch.
 
 SKILL DISTRIBUTION (not handled by this CLI)
-  Use \`npx skills add beautyfree/telegram-agent -a <agent> -g\` for the
-  universal path, or your agent's native plugin command. See the README.
+  Use \`npx skills add beautyfree/telegram-agent -a <agent> -g\` (54+ agents)
+  or your agent's native plugin command. See README.
 
 OUTPUT
-  All commands print JSON to stdout. Errors go to stderr as {"ok": false, "error": "..."}.
+  JSON to stdout. Errors → stderr as {"ok": false, "error": "..."} + exit code 1.
 
 ACCOUNT SELECTION
-  Pass --account <id> if you have multiple signed-in accounts. Otherwise the
-  single signed-in account is used (or you'll get an error listing options).
-`;
+  Pass --account <id> for multi-account installs. See \`telegram-agent accounts\`.
 
-function printHelp(): void {
-  process.stdout.write(HELP);
-}
+DAEMON
+  Most commands run faster (~200ms) when the daemon is up. The CLI tries
+  it first and silently falls back to in-process (~2s) otherwise. Start
+  with \`telegram-agent daemon start\`.
+`;
 
 // ─── dispatch ────────────────────────────────────────────────────────
 
-async function dispatch(argv: string[]): Promise<void> {
-  if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help') {
-    printHelp();
-    return;
-  }
-  if (argv[0] === '--version' || argv[0] === '-v') {
-    print({ version: VERSION });
-    return;
-  }
+interface Resolution {
+  fn: Cmd;
+  /** Dotted method name, e.g. "msg.list" or "login". */
+  method: string;
+  /** Number of argv tokens consumed by the walk. */
+  consumed: number;
+}
 
-  // Walk into nested groups (e.g. `saved tags`).
-  let cur: any = commands;
-  let consumed = 0;
+function resolve(argv: string[]): Resolution | null {
+  const path: string[] = [];
+  let cur: any = commandTable as any;
   for (let i = 0; i < argv.length && !argv[i].startsWith('--'); i++) {
     const tok = argv[i];
     if (typeof cur === 'object' && cur !== null && tok in cur) {
       cur = cur[tok];
-      consumed++;
+      path.push(tok);
       if (typeof cur === 'function') break;
     } else {
       break;
     }
   }
+  if (typeof cur !== 'function') return null;
+  return { fn: cur as Cmd, method: path.join('.'), consumed: path.length };
+}
 
-  if (typeof cur !== 'function') {
-    fail(`Unknown command: ${argv.slice(0, consumed + 1).join(' ') || '(none)'}. Run 'telegram-agent help'.`);
+/** Commands that must NOT round-trip through the daemon: they manage it. */
+const DAEMON_BYPASS = new Set([
+  'daemon.start',
+  'daemon.stop',
+  'daemon.status',
+  'login',
+  'logout',
+  'doctor',
+  'listen', // event subscriptions need their own client lifetime
+]);
+
+async function dispatch(argv: string[]): Promise<void> {
+  if (argv.length === 0 || argv[0] === '-h' || argv[0] === '--help' || argv[0] === 'help') {
+    process.stdout.write(HELP);
+    return;
+  }
+  if (argv[0] === '--version' || argv[0] === '-v' || argv[0] === 'version') {
+    print({ version: VERSION });
+    return;
   }
 
-  const rest = argv.slice(consumed);
+  const resolved = resolve(argv);
+  if (!resolved) fail(`Unknown command: ${argv.join(' ') || '(none)'}. Run \`telegram-agent --help\`.`);
+
+  const rest = argv.slice(resolved.consumed);
   const parsed = parseArgs(rest);
+
+  // Fast path: try the daemon if it's running and the command is safe to
+  // forward. Skip when --no-daemon is set.
+  const noDaemon = parsed.flags['no-daemon'] === true;
+  if (!noDaemon && !DAEMON_BYPASS.has(resolved.method)) {
+    if (await isDaemonRunning()) {
+      const code = await sendToDaemon({
+        method: resolved.method,
+        args: parsed.positional,
+        flags: parsed.flags,
+      });
+      if (code !== null) process.exit(code);
+      // null → daemon died mid-call; fall through to in-process.
+    }
+  }
+
+  // In-process path.
   try {
-    await (cur as Cmd)(parsed.positional, parsed.flags);
+    await resolved.fn(parsed.positional, parsed.flags);
   } catch (err) {
     if (err instanceof TelegramAuthError) {
-      fail(`Session expired for ${err.accountId}. Run 'telegram-agent login' to re-authorize.`);
+      fail(`Session expired for ${err.accountId}. Run \`telegram-agent login\` to re-authorize.`);
     }
     fail((err as Error).message ?? String(err));
   }
@@ -731,9 +229,11 @@ process.on('unhandledRejection', (reason) => {
 
 dispatch(process.argv.slice(2))
   .then(() => {
-    // The MCP entry runs forever; everything else should exit cleanly so
-    // gram.js's persistent WebSocket doesn't keep the process alive.
-    if (process.argv[2] !== 'login') process.exit(0);
+    // login holds the auth-browser HTTP server alive on purpose. listen
+    // never resolves. Everything else should exit clean so gram.js's
+    // persistent WebSocket doesn't pin the process.
+    const verb = process.argv[2];
+    if (verb !== 'login' && verb !== 'listen') process.exit(0);
   })
   .catch((err) => {
     fail((err as Error).message ?? String(err));

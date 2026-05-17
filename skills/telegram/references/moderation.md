@@ -6,8 +6,8 @@ The CLI MVP covers read-only inspection (`info`, `participants`). Mutating moder
 
 ```bash
 telegram-agent info @channel
-telegram-agent participants @channel --limit 200
-telegram-agent participants @channel --search "spam"   # filter by name
+telegram-agent chats members @channel --limit 200
+telegram-agent chats members @channel --search "spam"   # filter by name
 ```
 
 ## Mutating ops — via MCP

@@ -16,7 +16,7 @@ telegram-agent search @channel "" --min-date "$since" --limit 200 > batch.json
 Or just by count:
 
 ```bash
-telegram-agent messages @channel --limit 100 > batch.json
+telegram-agent msg list @channel --limit 100 > batch.json
 ```
 
 ### 2. Extract what you need
@@ -57,8 +57,8 @@ Include message ids so the user can `telegram-agent get @channel <id>` to jump.
 If a digest is noteworthy, save it to `me` and tag it:
 
 ```bash
-telegram-agent send me "📰 @channel digest 2026-05-17 ..." | jq -r '.id' > digest_id
-telegram-agent react me "$(cat digest_id)" 📰
+telegram-agent action send me "📰 @channel digest 2026-05-17 ..." | jq -r '.id' > digest_id
+telegram-agent action react me "$(cat digest_id)" 📰
 ```
 
 ## Multi-channel daily
@@ -67,7 +67,7 @@ Loop the recipe over a list of channels:
 
 ```bash
 for ch in @ainews @hn_bot @python_news; do
-  telegram-agent messages "$ch" --limit 30 > "batch_${ch}.json"
+  telegram-agent msg list "$ch" --limit 30 > "batch_${ch}.json"
 done
 # read all, generate single morning brief
 ```

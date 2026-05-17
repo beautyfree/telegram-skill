@@ -35,7 +35,7 @@ telegram-agent saved tag-rename 🎬 "Watch later"
 ### 2. Pull a batch
 
 ```bash
-telegram-agent messages me --limit 100 | jq '.[] | {id, date, text, mediaType}'
+telegram-agent msg list me --limit 100 | jq '.[] | {id, date, text, mediaType}'
 ```
 
 ### 3. Classify and tag
@@ -43,13 +43,13 @@ telegram-agent messages me --limit 100 | jq '.[] | {id, date, text, mediaType}'
 For each message, decide an emoji from the scheme (or invent a new one and rename it later). Then:
 
 ```bash
-telegram-agent react me <messageId> <emoji>
+telegram-agent action react me <messageId> <emoji>
 ```
 
 Batch a list with a shell loop:
 
 ```bash
-while read id emoji; do telegram-agent react me "$id" "$emoji"; done <<EOF
+while read id emoji; do telegram-agent action react me "$id" "$emoji"; done <<EOF
 12345 🧠
 12346 📚
 12347 🍳
@@ -82,7 +82,7 @@ Returns messages tagged with either tag (OR semantics on the server side as of M
 Remove all reactions on a message = `react` with no emoji:
 
 ```bash
-telegram-agent react me <messageId>
+telegram-agent action react me <messageId>
 ```
 
 Clear a tag's custom title (revert to bare emoji):

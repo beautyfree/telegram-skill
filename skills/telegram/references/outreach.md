@@ -41,13 +41,13 @@ For each peer in the batch:
 
 1. **Resolve** — confirm peer exists and isn't already a contact:
    ```bash
-   telegram-agent resolve @target | jq '{id, username, bot, premium, verified}'
+   telegram-agent info @target | jq '{id, username, bot, premium, verified}'
    ```
    If `bot: true` — skip. Don't DM bots.
 
 2. **Context check** — pull last few exchanges (if any) to avoid repeating yourself:
    ```bash
-   telegram-agent messages @target --limit 20
+   telegram-agent msg list @target --limit 20
    ```
 
 3. **Preview** — show the draft to the user. Wait for approval.
@@ -86,7 +86,7 @@ After a batch, output a summary table for the user:
 Sent: 18 / 20 planned
 Errors: 1 PEER_FLOOD (stopped early)
 Skipped: 1 (bot)
-Open replies after 24h: check tomorrow with `telegram-agent messages <peer> --limit 5`
+Open replies after 24h: check tomorrow with `telegram-agent msg list <peer> --limit 5`
 ```
 
 ## Don't
