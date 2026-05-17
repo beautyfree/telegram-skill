@@ -83,10 +83,10 @@ tg-skill send-file @friend ./a.jpg ./b.jpg ./c.jpg   # album
 
 ## What this skill does NOT do
 
-- Real-time push (new-message subscription). For that you need the MCP server (`tg-skill mcp`) or `invoke` with a long-poll method.
+- Real-time push (new-message subscription). For that, run the [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) MCP server alongside — both share the same session store.
 - Bot API operations (this is the user MTProto API; for bots use the Telegram Bot API directly).
 - Stickers/Voice transcription require Telegram Premium on the signed-in account.
 
 ## When to fall back to MCP
 
-If you need the agent's tool-call protocol (e.g. ChatGPT web Apps SDK, hosted runtimes without a shell), run `tg-skill mcp` and connect via stdio MCP. Skill-based usage is preferred — it saves ~12k tokens of context — but MCP remains available for clients without `Bash`.
+For agent runtimes without a shell (web Apps SDK, some hosted environments), use the [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) package as the MCP server. Skill-based usage is preferred when available — it saves ~12k tokens of context.

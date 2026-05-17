@@ -71,9 +71,11 @@
   "files": [
     "dist",
     "skills",
+    "assets",
     ".claude-plugin",
     ".cursor-plugin",
-    "gemini-extension.json"
+    "gemini-extension.json",
+    "mcp.json"
   ],
   "scripts": {
     "build": "tsc",
