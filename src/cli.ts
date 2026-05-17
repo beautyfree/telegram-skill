@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * tg-skill — Telegram CLI that backs the universal `telegram` agent-skill
+ * telegram-agent — Telegram CLI that backs the universal `telegram` agent-skill
  * bundle. Standalone: talks to Telegram via gram.js directly, no MCP
  * server in the loop.
  *
@@ -593,7 +593,7 @@ const commands: CmdGroup = {
   },
 
   // Skill-bundle distribution is intentionally handled by external
-  // tooling — `npx skills add beautyfree/telegram-skill -a <agent> -g`
+  // tooling — `npx skills add beautyfree/telegram-agent -a <agent> -g`
   // (https://github.com/vercel-labs/skills) for the universal path, or
   // each agent's native plugin command. Not the binary's job.
   //
@@ -610,11 +610,11 @@ const commands: CmdGroup = {
 
 const VERSION = '1.0.0';
 
-const HELP = `tg-skill ${VERSION} — Telegram CLI for AI agents
+const HELP = `telegram-agent ${VERSION} — Telegram CLI for AI agents
 
 USAGE
-  tg-skill <command> [args] [--flag value] [--account <id>]
-  tg-skill <group> <command> [args]
+  telegram-agent <command> [args] [--flag value] [--account <id>]
+  telegram-agent <group> <command> [args]
 
 SESSIONS
   login                           Open browser to sign in
@@ -663,7 +663,7 @@ RAW
   invoke <Namespace.Class> --params '{...}'   Call any MTProto method
 
 SKILL DISTRIBUTION (not handled by this CLI)
-  Use \`npx skills add beautyfree/telegram-skill -a <agent> -g\` for the
+  Use \`npx skills add beautyfree/telegram-agent -a <agent> -g\` for the
   universal path, or your agent's native plugin command. See the README.
 
 OUTPUT
@@ -705,7 +705,7 @@ async function dispatch(argv: string[]): Promise<void> {
   }
 
   if (typeof cur !== 'function') {
-    fail(`Unknown command: ${argv.slice(0, consumed + 1).join(' ') || '(none)'}. Run 'tg-skill help'.`);
+    fail(`Unknown command: ${argv.slice(0, consumed + 1).join(' ') || '(none)'}. Run 'telegram-agent help'.`);
   }
 
   const rest = argv.slice(consumed);
@@ -714,7 +714,7 @@ async function dispatch(argv: string[]): Promise<void> {
     await (cur as Cmd)(parsed.positional, parsed.flags);
   } catch (err) {
     if (err instanceof TelegramAuthError) {
-      fail(`Session expired for ${err.accountId}. Run 'tg-skill login' to re-authorize.`);
+      fail(`Session expired for ${err.accountId}. Run 'telegram-agent login' to re-authorize.`);
     }
     fail((err as Error).message ?? String(err));
   }

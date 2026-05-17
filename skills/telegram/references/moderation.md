@@ -5,9 +5,9 @@ The CLI MVP covers read-only inspection (`info`, `participants`). Mutating moder
 ## Read-only inspection
 
 ```bash
-tg-skill info @channel
-tg-skill participants @channel --limit 200
-tg-skill participants @channel --search "spam"   # filter by name
+telegram-agent info @channel
+telegram-agent participants @channel --limit 200
+telegram-agent participants @channel --search "spam"   # filter by name
 ```
 
 ## Mutating ops — via MCP
@@ -22,12 +22,12 @@ If you need full moderation, switch the agent to the `mcp-telegram` MCP server a
 
 ## Mutating ops — via raw MTProto
 
-Without switching transport, `tg-skill invoke` works:
+Without switching transport, `telegram-agent invoke` works:
 
 ### Ban a user
 
 ```bash
-tg-skill invoke channels.EditBanned --params '{
+telegram-agent invoke channels.EditBanned --params '{
   "channel": "@mychannel",
   "participant": "@baduser",
   "bannedRights": {
@@ -43,7 +43,7 @@ tg-skill invoke channels.EditBanned --params '{
 ### Restrict (mute) a user
 
 ```bash
-tg-skill invoke channels.EditBanned --params '{
+telegram-agent invoke channels.EditBanned --params '{
   "channel": "@mychannel",
   "participant": "@user",
   "bannedRights": {
@@ -63,7 +63,7 @@ tg-skill invoke channels.EditBanned --params '{
 ### Promote to admin
 
 ```bash
-tg-skill invoke channels.EditAdmin --params '{
+telegram-agent invoke channels.EditAdmin --params '{
   "channel": "@mychannel",
   "userId": "@user",
   "adminRights": {
@@ -86,13 +86,13 @@ tg-skill invoke channels.EditAdmin --params '{
 ### Kick (ban + immediate unban)
 
 ```bash
-tg-skill invoke channels.EditBanned --params '{
+telegram-agent invoke channels.EditBanned --params '{
   "channel": "@mychannel",
   "participant": "@user",
   "bannedRights": { "_": "chatBannedRights", "viewMessages": true, "untilDate": 0 }
 }'
 # then to allow them to rejoin via link:
-tg-skill invoke channels.EditBanned --params '{
+telegram-agent invoke channels.EditBanned --params '{
   "channel": "@mychannel",
   "participant": "@user",
   "bannedRights": { "_": "chatBannedRights", "untilDate": 0 }

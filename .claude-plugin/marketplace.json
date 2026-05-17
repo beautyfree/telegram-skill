@@ -1,5 +1,5 @@
 {
-  "name": "telegram-skill",
+  "name": "telegram-agent",
   "owner": {
     "name": "Alexey Elizarov",
     "url": "https://github.com/beautyfree"
@@ -11,11 +11,11 @@
     {
       "name": "telegram",
       "source": "./",
-      "description": "Telegram agent skill — operate a real Telegram user account via the tg-skill CLI. Reads dialogs, searches messages, sends/edits/forwards, tags Saved Messages, moderates channels. Triggers on mentions of Telegram, чаты, каналы, Saved Messages, or @channel-style peer names.",
+      "description": "Telegram agent skill — operate a real Telegram user account via the telegram-agent CLI. Reads dialogs, searches messages, sends/edits/forwards, tags Saved Messages, moderates channels. Triggers on mentions of Telegram, чаты, каналы, Saved Messages, or @channel-style peer names.",
       "version": "1.0.0",
       "category": "communication",
       "tags": ["telegram", "messaging", "communication", "saved-messages", "skill"],
-      "homepage": "https://github.com/beautyfree/telegram-skill",
+      "homepage": "https://github.com/beautyfree/telegram-agent",
       "license": "MIT"
     }
   ]

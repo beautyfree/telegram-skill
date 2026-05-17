@@ -10,7 +10,7 @@ Read every rule before starting.
 2. **Daily cap**: default 20 sends/day per account. Telegram flags more as spam.
 3. **Cooldown**: min 30 sec between two sends to *different* peers. Min 24h before re-messaging the *same* peer.
 4. **Personalize**: each message must reference something specific to the recipient. No identical messages to >1 peer.
-5. **Log everything**: `tg-skill send` returns the message id — save it.
+5. **Log everything**: `telegram-agent send` returns the message id — save it.
 6. **No bots, no channels** — DMs to users only. Channels have admins who'll mute/ban you.
 7. **Stop on first complaint** or `FLOOD_WAIT` error. Don't try to work around the rate limit.
 
@@ -41,20 +41,20 @@ For each peer in the batch:
 
 1. **Resolve** — confirm peer exists and isn't already a contact:
    ```bash
-   tg-skill resolve @target | jq '{id, username, bot, premium, verified}'
+   telegram-agent resolve @target | jq '{id, username, bot, premium, verified}'
    ```
    If `bot: true` — skip. Don't DM bots.
 
 2. **Context check** — pull last few exchanges (if any) to avoid repeating yourself:
    ```bash
-   tg-skill messages @target --limit 20
+   telegram-agent messages @target --limit 20
    ```
 
 3. **Preview** — show the draft to the user. Wait for approval.
 
 4. **Send** — only after approval. Save the returned id:
    ```bash
-   tg-skill send @target "<personalized text>" | jq '.id'
+   telegram-agent send @target "<personalized text>" | jq '.id'
    ```
 
 5. **Log** to a file with timestamp, peer, message id.
@@ -86,7 +86,7 @@ After a batch, output a summary table for the user:
 Sent: 18 / 20 planned
 Errors: 1 PEER_FLOOD (stopped early)
 Skipped: 1 (bot)
-Open replies after 24h: check tomorrow with `tg-skill messages <peer> --limit 5`
+Open replies after 24h: check tomorrow with `telegram-agent messages <peer> --limit 5`
 ```
 
 ## Don't

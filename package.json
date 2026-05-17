@@ -1,7 +1,7 @@
 {
-  "name": "telegram-skill",
+  "name": "telegram-agent",
   "version": "1.0.0",
-  "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~50× lower context cost than an always-on MCP server. Standalone CLI (`tg-skill`) talks to Telegram MTProto directly via gram.js, no MCP server in the loop. JSON-first output. One-command install for every major agent client. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
+  "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~50× lower context cost than an always-on MCP server. Standalone CLI (`telegram-agent`) talks to Telegram MTProto directly via gram.js, no MCP server in the loop. JSON-first output. One-command install for every major agent client. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
   "type": "module",
   "main": "dist/cli.js",
   "types": "dist/cli.d.ts",
@@ -9,16 +9,16 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/beautyfree/telegram-skill.git"
+    "url": "git+https://github.com/beautyfree/telegram-agent.git"
   },
-  "homepage": "https://github.com/beautyfree/telegram-skill#readme",
+  "homepage": "https://github.com/beautyfree/telegram-agent#readme",
   "bugs": {
-    "url": "https://github.com/beautyfree/telegram-skill/issues"
+    "url": "https://github.com/beautyfree/telegram-agent/issues"
   },
   "keywords": [
     "telegram",
-    "telegram-skill",
     "telegram-agent",
+    "telegram-skill",
     "telegram-cli",
     "telegram-api",
     "telegram-mtproto",
@@ -99,7 +99,7 @@
     "node": ">=20.0.0"
   },
   "bin": {
-    "tg-skill": "dist/cli.js"
+    "telegram-agent": "dist/cli.js"
   },
   "publishConfig": {
     "access": "public"

@@ -1,5 +1,5 @@
 {
-  "name": "telegram-skill",
+  "name": "telegram-agent",
   "version": "1.0.0",
   "description": "Telegram for Gemini CLI — read dialogs, search globally, send/edit/react, tag Saved Messages, moderate channels. Lazy-loaded skill + optional MCP server.",
   "skills": "./skills",

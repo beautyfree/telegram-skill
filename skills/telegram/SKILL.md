@@ -5,11 +5,11 @@ description: Read and operate on a real Telegram account — list dialogs, searc
 
 # Telegram
 
-Operates a real Telegram user account (not a bot) through the `tg-skill` CLI. Every command prints JSON to stdout — pipe through `jq` for filtering.
+Operates a real Telegram user account (not a bot) through the `telegram-agent` CLI. Every command prints JSON to stdout — pipe through `jq` for filtering.
 
 ## Setup check
 
-If `tg-skill accounts` returns `[]`, run `tg-skill login` once (opens a local browser). After that the session is cached in `~/.telegram-agent/`. All later commands reuse it.
+If `telegram-agent accounts` returns `[]`, run `telegram-agent login` once (opens a local browser). After that the session is cached in `~/.telegram-agent/`. All later commands reuse it.
 
 ## Quick map
 
@@ -20,7 +20,7 @@ If `tg-skill accounts` returns `[]`, run `tg-skill login` once (opens a local br
 - **Channels** — `info`, `participants`
 - **Raw** — `invoke <Namespace.Class> --params '{...}'` for any MTProto method not surfaced above
 
-Run `tg-skill help` for the full flag reference. For specific workflows read the matching file under `references/`:
+Run `telegram-agent help` for the full flag reference. For specific workflows read the matching file under `references/`:
 
 - `references/cli-reference.md` — exhaustive command/flag list with examples
 - `references/saved-tags.md` — categorize Saved Messages with reaction-tags (Premium)
@@ -42,7 +42,7 @@ Anywhere a `<peer>` is accepted:
 
 - Output is JSON. Parse with `jq`. If parsing fails, the command printed an error to stderr — read it.
 - Errors look like `{"ok": false, "error": "..."}` and exit code != 0.
-- For multi-account installs, pass `--account <id>` (get the id from `tg-skill accounts`).
+- For multi-account installs, pass `--account <id>` (get the id from `telegram-agent accounts`).
 - Mutating commands have no `--dry-run`. For destructive ops (`delete`, `delete-history`, `kick`, `ban`), confirm with the user before running unless they explicitly said "yes do it".
 
 ## Common patterns
@@ -50,13 +50,13 @@ Anywhere a `<peer>` is accepted:
 ### "Find that link about X in Telegram"
 
 ```bash
-tg-skill search-global "X" --limit 50 | jq '.[] | {date, peer: .peer.title, text}'
+telegram-agent search-global "X" --limit 50 | jq '.[] | {date, peer: .peer.title, text}'
 ```
 
 ### "Read the last N messages from @channel"
 
 ```bash
-tg-skill messages @channel --limit 50 | jq '.[] | {date, text}'
+telegram-agent messages @channel --limit 50 | jq '.[] | {date, text}'
 ```
 
 ### "Tag and categorize my Saved Messages by topic"
@@ -70,15 +70,15 @@ See `references/digest.md`.
 ### "Send a message"
 
 ```bash
-tg-skill send @friend "hello"
-tg-skill send @friend "long *markdown*" --parse-mode markdown --reply-to 12345
+telegram-agent send @friend "hello"
+telegram-agent send @friend "long *markdown*" --parse-mode markdown --reply-to 12345
 ```
 
 ### "Send a file or album"
 
 ```bash
-tg-skill send-file @friend ./photo.jpg --caption "look"
-tg-skill send-file @friend ./a.jpg ./b.jpg ./c.jpg   # album
+telegram-agent send-file @friend ./photo.jpg --caption "look"
+telegram-agent send-file @friend ./a.jpg ./b.jpg ./c.jpg   # album
 ```
 
 ## What this skill does NOT do

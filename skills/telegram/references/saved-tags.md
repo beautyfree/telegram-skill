@@ -18,24 +18,24 @@ Goal: take the last N unread Saved Messages, classify each by topic, apply a tag
 ### 1. Read current tag scheme
 
 ```bash
-tg-skill saved tags
+telegram-agent saved tags
 ```
 
 Returns server-stored tags with `count` and `title`. If empty, you're starting fresh. Optionally seed names:
 
 ```bash
-tg-skill saved tag-rename 🧠 "AI"
-tg-skill saved tag-rename 📚 "Books"
-tg-skill saved tag-rename 💼 "Work"
-tg-skill saved tag-rename 🍳 "Recipes"
-tg-skill saved tag-rename 🔧 "Tools"
-tg-skill saved tag-rename 🎬 "Watch later"
+telegram-agent saved tag-rename 🧠 "AI"
+telegram-agent saved tag-rename 📚 "Books"
+telegram-agent saved tag-rename 💼 "Work"
+telegram-agent saved tag-rename 🍳 "Recipes"
+telegram-agent saved tag-rename 🔧 "Tools"
+telegram-agent saved tag-rename 🎬 "Watch later"
 ```
 
 ### 2. Pull a batch
 
 ```bash
-tg-skill messages me --limit 100 | jq '.[] | {id, date, text, mediaType}'
+telegram-agent messages me --limit 100 | jq '.[] | {id, date, text, mediaType}'
 ```
 
 ### 3. Classify and tag
@@ -43,13 +43,13 @@ tg-skill messages me --limit 100 | jq '.[] | {id, date, text, mediaType}'
 For each message, decide an emoji from the scheme (or invent a new one and rename it later). Then:
 
 ```bash
-tg-skill react me <messageId> <emoji>
+telegram-agent react me <messageId> <emoji>
 ```
 
 Batch a list with a shell loop:
 
 ```bash
-while read id emoji; do tg-skill react me "$id" "$emoji"; done <<EOF
+while read id emoji; do telegram-agent react me "$id" "$emoji"; done <<EOF
 12345 🧠
 12346 📚
 12347 🍳
@@ -59,20 +59,20 @@ EOF
 ### 4. Verify per-tag pulls
 
 ```bash
-tg-skill saved search --tag 🧠 --limit 20
-tg-skill saved search --tag 📚 --query "rust"   # text + tag
+telegram-agent saved search --tag 🧠 --limit 20
+telegram-agent saved search --tag 📚 --query "rust"   # text + tag
 ```
 
 ### 5. Get counts
 
 ```bash
-tg-skill saved tags | jq '.tags[] | {emoji: .reaction.emoticon, count, title}'
+telegram-agent saved tags | jq '.tags[] | {emoji: .reaction.emoticon, count, title}'
 ```
 
 ## Multi-tag search
 
 ```bash
-tg-skill saved search --tag 🧠 --tag 📚 --limit 50
+telegram-agent saved search --tag 🧠 --tag 📚 --limit 50
 ```
 
 Returns messages tagged with either tag (OR semantics on the server side as of MTProto layer 178+).
@@ -82,18 +82,18 @@ Returns messages tagged with either tag (OR semantics on the server side as of M
 Remove all reactions on a message = `react` with no emoji:
 
 ```bash
-tg-skill react me <messageId>
+telegram-agent react me <messageId>
 ```
 
 Clear a tag's custom title (revert to bare emoji):
 
 ```bash
-tg-skill saved tag-rename 🧠
+telegram-agent saved tag-rename 🧠
 ```
 
 ## Saved sub-dialogs (forum mode)
 
-Telegram now groups Saved Messages into sub-dialogs by original sender. `tg-skill saved dialogs` lists them; `tg-skill saved history <origin-peer>` reads one. Useful for "show me everything I forwarded from @hackernews".
+Telegram now groups Saved Messages into sub-dialogs by original sender. `telegram-agent saved dialogs` lists them; `telegram-agent saved history <origin-peer>` reads one. Useful for "show me everything I forwarded from @hackernews".
 
 ## Don't
 

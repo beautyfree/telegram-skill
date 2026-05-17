@@ -10,13 +10,13 @@ Decide how far back to read. Either by count (`--limit 200`) or by date (`--min-
 
 ```bash
 since=$(date -v -1d +%s)   # 24h ago, macOS. Linux: date -d '1 day ago' +%s
-tg-skill search @channel "" --min-date "$since" --limit 200 > batch.json
+telegram-agent search @channel "" --min-date "$since" --limit 200 > batch.json
 ```
 
 Or just by count:
 
 ```bash
-tg-skill messages @channel --limit 100 > batch.json
+telegram-agent messages @channel --limit 100 > batch.json
 ```
 
 ### 2. Extract what you need
@@ -50,15 +50,15 @@ Read `textonly.json`, generate a digest. Format suggestion:
 - ...
 ```
 
-Include message ids so the user can `tg-skill get @channel <id>` to jump.
+Include message ids so the user can `telegram-agent get @channel <id>` to jump.
 
 ### 4. Optional — pin or react
 
 If a digest is noteworthy, save it to `me` and tag it:
 
 ```bash
-tg-skill send me "📰 @channel digest 2026-05-17 ..." | jq -r '.id' > digest_id
-tg-skill react me "$(cat digest_id)" 📰
+telegram-agent send me "📰 @channel digest 2026-05-17 ..." | jq -r '.id' > digest_id
+telegram-agent react me "$(cat digest_id)" 📰
 ```
 
 ## Multi-channel daily
@@ -67,7 +67,7 @@ Loop the recipe over a list of channels:
 
 ```bash
 for ch in @ainews @hn_bot @python_news; do
-  tg-skill messages "$ch" --limit 30 > "batch_${ch}.json"
+  telegram-agent messages "$ch" --limit 30 > "batch_${ch}.json"
 done
 # read all, generate single morning brief
 ```

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Telegram for Cursor — read dialogs, search globally, send/edit/react, tag Saved Messages (Premium), moderate channels. Ships as a lazy-loaded agent skill plus optional MCP server.",
   "author": "Alexey Elizarov",
-  "homepage": "https://github.com/beautyfree/telegram-skill",
+  "homepage": "https://github.com/beautyfree/telegram-agent",
   "license": "MIT",
   "skills": "./skills",
   "mcp": "./mcp.json"

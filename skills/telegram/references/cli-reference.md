@@ -1,4 +1,4 @@
-# tg-skill — Full CLI reference
+# telegram-agent — Full CLI reference
 
 Every command prints JSON to stdout. Errors → stderr as `{"ok": false, "error": "..."}` and exit code != 0. Add `--account <id>` for multi-account installs.
 
@@ -6,17 +6,17 @@ Every command prints JSON to stdout. Errors → stderr as `{"ok": false, "error"
 
 | Command | Notes |
 |---|---|
-| `tg-skill login` | Opens a browser tab for phone → code → 2FA. Persists session to `~/.telegram-agent/`. |
-| `tg-skill logout <accountId>` | Drops the session locally + revokes server-side. |
-| `tg-skill accounts` | `[{ id, phone, username }]`. |
-| `tg-skill me` | Returns the authenticated user record. |
+| `telegram-agent login` | Opens a browser tab for phone → code → 2FA. Persists session to `~/.telegram-agent/`. |
+| `telegram-agent logout <accountId>` | Drops the session locally + revokes server-side. |
+| `telegram-agent accounts` | `[{ id, phone, username }]`. |
+| `telegram-agent me` | Returns the authenticated user record. |
 
 ## Dialogs
 
 ```
-tg-skill dialogs [--unread] [--archived] [--folder N] [--ignore-pinned] [--limit N]
-tg-skill search-dialogs <query> [--limit N]
-tg-skill resolve <@username|id>
+telegram-agent dialogs [--unread] [--archived] [--folder N] [--ignore-pinned] [--limit N]
+telegram-agent search-dialogs <query> [--limit N]
+telegram-agent resolve <@username|id>
 ```
 
 Output shape (dialogs): `[{ id, name, title, unreadCount, date, pinned, archived }]`
@@ -24,26 +24,26 @@ Output shape (dialogs): `[{ id, name, title, unreadCount, date, pinned, archived
 ## Messages — read
 
 ```
-tg-skill messages <peer> [--limit N]
-tg-skill search <peer> [query]
+telegram-agent messages <peer> [--limit N]
+telegram-agent search <peer> [query]
   [--filter photos|videos|photoVideo|documents|music|voice|roundVideo|roundVoice|gif|url|geo|contacts|chatPhotos|myMentions|pinned]
   [--from-user @user] [--min-date <unixSec>] [--max-date <unixSec>]
   [--limit N] [--reverse]
-tg-skill search-global <query> [--filter X] [--min-date T] [--max-date T] [--limit N]
-tg-skill get <peer> <id[,id...]>
+telegram-agent search-global <query> [--filter X] [--min-date T] [--max-date T] [--limit N]
+telegram-agent get <peer> <id[,id...]>
 ```
 
 ## Messages — write
 
 ```
-tg-skill send <peer> <text> [--reply-to N] [--silent] [--parse-mode markdown|html]
-tg-skill edit <peer> <id> <text> [--parse-mode markdown|html]
-tg-skill delete <peer> <id[,id...]> [--revoke false]
-tg-skill forward --from <peer> --to <peer> --ids 1,2,3 [--silent]
-tg-skill pin <peer> <id> [--notify] [--pm-one-side]
-tg-skill unpin <peer> <id>
-tg-skill react <peer> <id> <emoji...> [--custom-emoji-ids id,id] [--big] [--add-to-recent]
-tg-skill mark-read <peer> [--max-id N]
+telegram-agent send <peer> <text> [--reply-to N] [--silent] [--parse-mode markdown|html]
+telegram-agent edit <peer> <id> <text> [--parse-mode markdown|html]
+telegram-agent delete <peer> <id[,id...]> [--revoke false]
+telegram-agent forward --from <peer> --to <peer> --ids 1,2,3 [--silent]
+telegram-agent pin <peer> <id> [--notify] [--pm-one-side]
+telegram-agent unpin <peer> <id>
+telegram-agent react <peer> <id> <emoji...> [--custom-emoji-ids id,id] [--big] [--add-to-recent]
+telegram-agent mark-read <peer> [--max-id N]
 ```
 
 `react` with no emoji clears existing reactions. Multiple emoji = multi-react (Premium).
@@ -51,9 +51,9 @@ tg-skill mark-read <peer> [--max-id N]
 ## Media
 
 ```
-tg-skill send-file <peer> <path-or-url...>
+telegram-agent send-file <peer> <path-or-url...>
   [--caption X] [--voice] [--as-document] [--silent] [--reply-to N]
-tg-skill download <peer> <messageId>
+telegram-agent download <peer> <messageId>
 ```
 
 `send-file` accepts multiple paths/URLs — they're sent as one album (max 10). HTTPS URLs are fetched into a temp file first.
@@ -63,24 +63,24 @@ tg-skill download <peer> <messageId>
 ## Saved Messages
 
 ```
-tg-skill saved tags
-tg-skill saved tag-rename <emoji> [title]      # omit title to clear
-tg-skill saved default-tags
-tg-skill saved search [--tag emoji ...] [--tag-custom id,id] [--query X]
+telegram-agent saved tags
+telegram-agent saved tag-rename <emoji> [title]      # omit title to clear
+telegram-agent saved default-tags
+telegram-agent saved search [--tag emoji ...] [--tag-custom id,id] [--query X]
                     [--saved-peer P] [--limit N] [--min-date T] [--max-date T]
-tg-skill saved dialogs [--exclude-pinned] [--limit N]
-tg-skill saved history <peer> [--offset-id N] [--limit N]
-tg-skill saved delete-history <peer> [--max-id N] [--min-date T] [--max-date T]
-tg-skill saved toggle-pin <peer> [--pinned true|false]
+telegram-agent saved dialogs [--exclude-pinned] [--limit N]
+telegram-agent saved history <peer> [--offset-id N] [--limit N]
+telegram-agent saved delete-history <peer> [--max-id N] [--min-date T] [--max-date T]
+telegram-agent saved toggle-pin <peer> [--pinned true|false]
 ```
 
-Tagging a Saved message = react on it: `tg-skill react me <msg-id> 🧠`. Then `tg-skill saved search --tag 🧠` returns everything tagged that way.
+Tagging a Saved message = react on it: `telegram-agent react me <msg-id> 🧠`. Then `telegram-agent saved search --tag 🧠` returns everything tagged that way.
 
 ## Channels
 
 ```
-tg-skill info <peer>
-tg-skill participants <peer> [--limit N] [--search X]
+telegram-agent info <peer>
+telegram-agent participants <peer> [--limit N] [--search X]
 ```
 
 For full channel admin/moderation surface (ban, restrict, promote, invite-link management, slow-mode, etc.) — use the MCP server (`mcp-telegram`) or the raw bridge below. CLI MVP covers read-only inspection.
@@ -88,34 +88,34 @@ For full channel admin/moderation surface (ban, restrict, promote, invite-link m
 ## Raw MTProto
 
 ```
-tg-skill invoke <Namespace.Class> --params '<json>'
+telegram-agent invoke <Namespace.Class> --params '<json>'
 ```
 
 Examples:
 
 ```
-tg-skill invoke messages.GetStickers --params '{"emoticon": "👍", "hash": "0"}'
-tg-skill invoke channels.GetFullChannel --params '{"channel": "@telegram"}'
+telegram-agent invoke messages.GetStickers --params '{"emoticon": "👍", "hash": "0"}'
+telegram-agent invoke channels.GetFullChannel --params '{"channel": "@telegram"}'
 ```
 
 Entity-like string fields (`peer`, `channel`, `user`, `bot`, `chat`, `fromPeer`, `toPeer`) are auto-hydrated from `@username` / numeric / `me`.
 
 ## Skill distribution (not handled by this CLI)
 
-`tg-skill` only talks to Telegram. To install or update this skill in your
+`telegram-agent` only talks to Telegram. To install or update this skill in your
 agent, use the universal installer or your agent's native command:
 
 ```
-npx skills add beautyfree/telegram-skill -a <agent> -g
+npx skills add beautyfree/telegram-agent -a <agent> -g
 # e.g.
-npx skills add beautyfree/telegram-skill -a claude-code -g
+npx skills add beautyfree/telegram-agent -a claude-code -g
 ```
 
 See the project README for the per-agent native commands.
 
 ## MCP server
 
-`tg-skill` doesn't ship a `mcp` subcommand. For the always-on tool-call
+`telegram-agent` doesn't ship a `mcp` subcommand. For the always-on tool-call
 transport, install [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram)
 separately — it shares the same `~/.telegram-agent/` session store so one
 login covers both.
