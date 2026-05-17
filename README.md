@@ -54,7 +54,7 @@ npm i -g telegram-skill           # installs tg-skill + telegram-skill bins
 tg-skill login                    # opens a browser → phone → code → 2FA
 ```
 
-Session persists at `~/.mcp-telegram/` (sic — the directory name is shared on-disk format with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram), so users with both installed sign in once). You need API credentials from [my.telegram.org/apps](https://my.telegram.org/apps); export them once:
+Session persists at `~/.telegram-agent/` (sic — the directory name is shared on-disk format with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram), so users with both installed sign in once). You need API credentials from [my.telegram.org/apps](https://my.telegram.org/apps); export them once:
 
 ```bash
 export TELEGRAM_API_ID=123456
@@ -150,7 +150,7 @@ Run `tg-skill help` for the full reference.
 
 ## How it works
 
-1. **Session** — `tg-skill login` opens a tiny local browser page that walks you through phone → SMS → 2FA. The session is stored at `~/.mcp-telegram/`. The directory name is shared with the [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) MCP server so users running both transports sign in once.
+1. **Session** — `tg-skill login` opens a tiny local browser page that walks you through phone → SMS → 2FA. The session is stored at `~/.telegram-agent/`. The directory name is shared with the [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) MCP server so users running both transports sign in once.
 
 2. **Skill bundle** — a single `SKILL.md` with YAML frontmatter (`name`, `description`) plus 5 lazy-loaded reference docs under `references/`:
    - `cli-reference.md` — every command + flag
@@ -181,7 +181,7 @@ Run `tg-skill help` for the full reference.
 
 **Bot or user account?** User account. This is the MTProto API, not the Bot API. The agent acts as you.
 
-**Is my data going somewhere?** The session lives in `~/.mcp-telegram/` on your machine. No third-party server. Treat that directory like a password.
+**Is my data going somewhere?** The session lives in `~/.telegram-agent/` on your machine. No third-party server. Treat that directory like a password.
 
 **What about real-time push notifications?** The skill/CLI path is request-response. For long-poll / streaming, run [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) as the MCP server (which supports update subscriptions through its tool surface).
 

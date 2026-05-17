@@ -6,7 +6,7 @@
  *
  * Design goals:
  *   • JSON-first output (parseable by skills/agents)
- *   • Session stored at ~/.mcp-telegram (shared on-disk format with the
+ *   • Session stored at ~/.telegram-agent (shared on-disk format with the
  *     mcp-telegram MCP server, so users with both installed sign in once)
  *   • Zero context cost when idle — the agent only loads the skill markdown
  *     when it matches the user's intent

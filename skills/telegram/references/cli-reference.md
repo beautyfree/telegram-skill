@@ -6,7 +6,7 @@ Every command prints JSON to stdout. Errors → stderr as `{"ok": false, "error"
 
 | Command | Notes |
 |---|---|
-| `tg-skill login` | Opens a browser tab for phone → code → 2FA. Persists session to `~/.mcp-telegram/`. |
+| `tg-skill login` | Opens a browser tab for phone → code → 2FA. Persists session to `~/.telegram-agent/`. |
 | `tg-skill logout <accountId>` | Drops the session locally + revokes server-side. |
 | `tg-skill accounts` | `[{ id, phone, username }]`. |
 | `tg-skill me` | Returns the authenticated user record. |
@@ -58,7 +58,7 @@ tg-skill download <peer> <messageId>
 
 `send-file` accepts multiple paths/URLs — they're sent as one album (max 10). HTTPS URLs are fetched into a temp file first.
 
-`download` writes the file to `~/.mcp-telegram/downloads/` (override via `MCP_TELEGRAM_DOWNLOADS`) and prints `{"path": "..."}`.
+`download` writes the file to `~/.telegram-agent/downloads/` (override via `TELEGRAM_AGENT_DOWNLOADS`) and prints `{"path": "..."}`.
 
 ## Saved Messages
 

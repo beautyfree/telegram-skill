@@ -9,7 +9,7 @@ Operates a real Telegram user account (not a bot) through the `tg-skill` CLI. Ev
 
 ## Setup check
 
-If `tg-skill accounts` returns `[]`, run `tg-skill login` once (opens a local browser). After that the session is cached in `~/.mcp-telegram/`. All later commands reuse it.
+If `tg-skill accounts` returns `[]`, run `tg-skill login` once (opens a local browser). After that the session is cached in `~/.telegram-agent/`. All later commands reuse it.
 
 ## Quick map
 

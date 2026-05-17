@@ -34,7 +34,29 @@ interface StateShape {
   settings?: Settings;
 }
 
-const baseDir = process.env.MCP_TELEGRAM_HOME || join(homedir(), '.mcp-telegram');
+/**
+ * Shared on-disk home for the Telegram session store. Both this package
+ * and the `mcp-telegram` MCP server read/write here so one `login` works
+ * across both transports.
+ *
+ * Env override accepts the canonical `TELEGRAM_AGENT_HOME` as well as the
+ * legacy `MCP_TELEGRAM_HOME` (kept for backward compat with v2.x configs).
+ *
+ * Default location is `~/.telegram-agent/`. If that doesn't exist yet but
+ * the legacy `~/.mcp-telegram/` does, we transparently keep using the
+ * legacy dir — existing logged-in users don't have to re-authenticate.
+ */
+function resolveBaseDir(): string {
+  const fromEnv = process.env.TELEGRAM_AGENT_HOME || process.env.MCP_TELEGRAM_HOME;
+  if (fromEnv) return fromEnv;
+  const home = homedir();
+  const next = join(home, '.telegram-agent');
+  const legacy = join(home, '.mcp-telegram');
+  if (!existsSync(next) && existsSync(legacy)) return legacy;
+  return next;
+}
+
+const baseDir = resolveBaseDir();
 const stateFile = join(baseDir, 'state.json');
 export const sessionsDir = join(baseDir, 'sessions');
 
