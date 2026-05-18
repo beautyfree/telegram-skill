@@ -9,27 +9,24 @@
  * filter vocabulary. Auto-enrich flags pull media + voice transcripts
  * inline so the agent can summarize without follow-up calls.
  */
-import { Api } from 'telegram';
-import { join } from 'path';
 
+import { Api } from 'telegram';
+import { autoDownloadAll, autoDownloadSmall } from '../enrich/download.js';
+import { flattenMessage, flattenMessages } from '../enrich/flatten.js';
+import { attachLinkPreviews } from '../enrich/links.js';
+import { addSenderNames } from '../enrich/names.js';
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
-  parsePeer,
-  withClient,
-  serializeMessage,
-  serializeEntity,
-  MESSAGE_FILTER,
-  need,
-  print,
   collectIds,
   flagBool,
   flagNum,
   flagStr,
+  MESSAGE_FILTER,
+  need,
+  parsePeer,
+  print,
+  withClient,
 } from './_shared.js';
-import { addSenderNames } from '../enrich/names.js';
-import { autoDownloadSmall, autoDownloadAll } from '../enrich/download.js';
-import { flattenMessages, flattenMessage } from '../enrich/flatten.js';
-import { attachLinkPreviews } from '../enrich/links.js';
 
 const TRUNCATE_DEFAULT = 500;
 
@@ -53,12 +50,11 @@ function applyTruncate(msgs: any[], full: boolean): any[] {
   if (full) return msgs;
   return msgs.map((m) => {
     if (typeof m.text === 'string' && m.text.length > TRUNCATE_DEFAULT) {
-      return { ...m, text: m.text.slice(0, TRUNCATE_DEFAULT) + '…[truncated]', truncated: true };
+      return { ...m, text: `${m.text.slice(0, TRUNCATE_DEFAULT)}…[truncated]`, truncated: true };
     }
     return m;
   });
 }
-
 
 /**
  * Request server-side transcription for voice / round-video notes.
@@ -69,8 +65,11 @@ function applyTruncate(msgs: any[], full: boolean): any[] {
  */
 async function autoTranscribe(client: any, raw: any[]): Promise<void> {
   for (const m of raw) {
-    const isVoice = m.voice || m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeAudio' && a.voice);
-    const isRound = m.videoNote || m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeVideo' && a.roundMessage);
+    const isVoice =
+      m.voice || m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeAudio' && a.voice);
+    const isRound =
+      m.videoNote ||
+      m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeVideo' && a.roundMessage);
     if (!isVoice && !isRound) continue;
     try {
       const inputPeer = await client.getInputEntity(m.peerId);
@@ -151,7 +150,7 @@ const search: Cmd = async (args, flags) => {
   await withClient(flags, async (client, accountId) => {
     const filterName = flagStr(flags, 'filter');
     const filterCtor = filterName
-      ? (MESSAGE_FILTER as any)[filterName]?.() ?? new Api.InputMessagesFilterEmpty()
+      ? ((MESSAGE_FILTER as any)[filterName]?.() ?? new Api.InputMessagesFilterEmpty())
       : new Api.InputMessagesFilterEmpty();
     const limit = flagNum(flags, 'limit') ?? 50;
     const minDate = flagNum(flags, 'since') ?? 0;
@@ -159,7 +158,7 @@ const search: Cmd = async (args, flags) => {
     const chat = flagStr(flags, 'chat');
 
     let rawHits: any[] = [];
-    let chats = new Map<string, any>();
+    const chats = new Map<string, any>();
 
     if (chat) {
       // Per-chat search — supports --from filter, same as `msg list --query`.
@@ -179,7 +178,7 @@ const search: Cmd = async (args, flags) => {
           offsetPeer: new Api.InputPeerEmpty(),
           offsetId: 0,
           limit,
-        })
+        }),
       );
       rawHits = result.messages ?? [];
       for (const c of result.chats ?? []) chats.set(c.id?.toString(), c);
@@ -194,17 +193,10 @@ const search: Cmd = async (args, flags) => {
     const context = flagNum(flags, 'context') ?? 0;
 
     function peerOf(m: any): any {
-      const id =
-        m.peerId?.userId?.toString?.() ??
-        m.peerId?.chatId?.toString?.() ??
-        m.peerId?.channelId?.toString?.();
+      const id = m.peerId?.userId?.toString?.() ?? m.peerId?.chatId?.toString?.() ?? m.peerId?.channelId?.toString?.();
       const raw = id ? chats.get(id) : undefined;
       if (!raw) return undefined;
-      const type: 'user' | 'chat' | 'channel' = m.peerId?.userId
-        ? 'user'
-        : m.peerId?.chatId
-          ? 'chat'
-          : 'channel';
+      const type: 'user' | 'chat' | 'channel' = m.peerId?.userId ? 'user' : m.peerId?.chatId ? 'chat' : 'channel';
       return {
         id,
         type,

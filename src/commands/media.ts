@@ -6,26 +6,27 @@
  *   media transcribe <chat> <msgId>      — server-side transcription for
  *                                          voice / round-video notes (Premium)
  */
-import { join } from 'path';
-import { Api } from 'telegram';
 
+import { randomBytes } from 'node:crypto';
+import { unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Api } from 'telegram';
+import { captionFiles, downloadCaptionModel } from '../caption/client.js';
+import { ensureDownloadsDir, resolveFileArg } from '../helpers.js';
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
-  parsePeer,
-  withClient,
-  serializeMessage,
-  need,
-  print,
   fail,
   flagBool,
   flagNum,
   flagStr,
+  need,
+  parsePeer,
+  print,
+  serializeMessage,
+  warn,
+  withClient,
 } from './_shared.js';
-import { resolveFileArg, ensureDownloadsDir } from '../helpers.js';
-import { captionFiles, downloadCaptionModel } from '../caption/client.js';
-import { unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { randomBytes } from 'crypto';
 
 const send: Cmd = async (args, flags) => {
   const peer = need(args, 0, 'chat');
@@ -65,9 +66,7 @@ const transcribe: Cmd = async (args, flags) => {
   await withClient(flags, async (client) => {
     const inputPeer = await client.getInputEntity(parsePeer(peer));
     try {
-      const r: any = await client.invoke(
-        new Api.messages.TranscribeAudio({ peer: inputPeer, msgId: messageId }),
-      );
+      const r: any = await client.invoke(new Api.messages.TranscribeAudio({ peer: inputPeer, msgId: messageId }));
       print({
         messageId,
         text: r.text ?? '',
@@ -107,7 +106,11 @@ const caption: Cmd = async (args, flags) => {
       const text = Array.isArray(result) ? result[0]?.text : (result as any).text;
       print({ messageId, text: text ?? '', model: 'Florence-2-base@q4' });
     } finally {
-      try { unlinkSync(tmpPath); } catch { /* best-effort */ }
+      try {
+        unlinkSync(tmpPath);
+      } catch {
+        /* best-effort */
+      }
     }
   });
 };
@@ -125,8 +128,8 @@ const caption: Cmd = async (args, flags) => {
 const captionRun: Cmd = async (args, flags) => {
   if (args.length === 0) fail('Provide at least one image path', 'INVALID_ARGS');
   const maxTokens = flagNum(flags, 'max-tokens');
-  const { existsSync } = await import('fs');
-  const { resolve } = await import('path');
+  const { existsSync } = await import('node:fs');
+  const { resolve } = await import('node:path');
   const paths = args.map((a) => resolve(a));
   for (const p of paths) {
     if (!existsSync(p)) fail(`File not found: ${p}`, 'NOT_FOUND');
@@ -147,6 +150,7 @@ const captionRun: Cmd = async (args, flags) => {
  * Use to warm up CI / Docker images before the first real `caption` call.
  */
 const captionDownload: Cmd = async () => {
+  warn('Downloading Florence-2-base@q4 weights (~150 MB) to ~/.telegram-agent/models/');
   try {
     const r = await downloadCaptionModel();
     print(r);

@@ -1,15 +1,3 @@
-/**
- * Resolve user / chat / channel ids to display names, with an in-process
- * cache. Used to turn `fromId: "12345"` into `from: "Boris"` on the way
- * out of `msg list` / `msg get` / `msg search` / `listen`. Same pattern
- * as avemeva/agent-telegram's enrich/names.
- *
- * Cache lives for the duration of the CLI process — daemon-backed calls
- * implicitly share it across requests, ad-hoc calls bear the lookup cost
- * once per process.
- */
-import { Api } from 'telegram';
-
 type Client = any;
 
 interface Cache {
@@ -53,7 +41,12 @@ async function fetchUser(client: Client, cache: Cache, id: string): Promise<stri
   }
 }
 
-async function fetchChatLike(client: Client, cache: Cache, id: string, asChannel: boolean): Promise<string | undefined> {
+async function fetchChatLike(
+  client: Client,
+  cache: Cache,
+  id: string,
+  asChannel: boolean,
+): Promise<string | undefined> {
   const key = asChannel ? channelKey(id) : chatKey(id);
   if (!key) return undefined;
   if (cache.byId.has(key)) return cache.byId.get(key);
@@ -111,8 +104,7 @@ export async function addSenderNames<T extends any[]>(
   for (const m of messages) {
     const peer = m?.peerId;
     if (peer) {
-      const id =
-        peer.userId?.toString() ?? peer.chatId?.toString() ?? peer.channelId?.toString();
+      const id = peer.userId?.toString() ?? peer.chatId?.toString() ?? peer.channelId?.toString();
       const key = peer.userId
         ? userKey(peer.userId.toString())
         : peer.chatId
@@ -131,8 +123,7 @@ export async function addSenderNames<T extends any[]>(
 
     const from = m?.fromId;
     if (from) {
-      const id =
-        from.userId?.toString() ?? from.chatId?.toString() ?? from.channelId?.toString();
+      const id = from.userId?.toString() ?? from.chatId?.toString() ?? from.channelId?.toString();
       const key = from.userId
         ? userKey(from.userId.toString())
         : from.chatId
@@ -153,5 +144,5 @@ export async function addSenderNames<T extends any[]>(
   return messages;
 }
 
-export { makeCache };
 export type { Cache as NameCache };
+export { makeCache };

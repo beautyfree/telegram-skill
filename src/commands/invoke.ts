@@ -10,9 +10,10 @@
  * harder for a prompt-injection to slip a `channels.DeleteMessages` or
  * `messages.DeleteHistory` past the operator.
  */
+
+import { hydrateApiParams, resolveApiClass } from '../helpers.js';
 import type { Cmd } from './_shared.js';
-import { withClient, need, print, fail, flagStr, flagBool } from './_shared.js';
-import { resolveApiClass, hydrateApiParams } from '../helpers.js';
+import { fail, flagBool, flagStr, need, print, withClient } from './_shared.js';
 
 /**
  * Substring patterns matched (case-insensitive) against the dotted class
@@ -27,16 +28,16 @@ const DESTRUCTIVE_PATTERNS: readonly string[] = [
   'kick',
   'ban',
   'restrict',
-  'edit.*banned',  // channels.EditBanned, channels.EditChatBanned, ...
-  'edit.*admin',   // channels.EditAdmin, messages.EditChatAdmin, ...
-  'promote',       // privilege change
-  'demote',        // privilege change
+  'edit.*banned', // channels.EditBanned, channels.EditChatBanned, ...
+  'edit.*admin', // channels.EditAdmin, messages.EditChatAdmin, ...
+  'promote', // privilege change
+  'demote', // privilege change
   'leave',
   'logout',
-  'terminat',      // sessions.TerminateSession / TerminateAllSessions
+  'terminat', // sessions.TerminateSession / TerminateAllSessions
   'reportspam',
   'updateusername', // identity change
-  'updateprofile',  // identity change
+  'updateprofile', // identity change
   'updateemail',
   'changeauthorization',
   'resetauthorization',
@@ -63,9 +64,9 @@ export const invoke: Cmd = async (args, flags) => {
   if (isDestructive(className) && !flagBool(flags, 'confirm')) {
     fail(
       `${className} matches a destructive MTProto pattern (delete/kick/ban/promote/etc.). ` +
-      `Re-run with --confirm if you really mean it. ` +
-      `This guard exists because untrusted message content can reach the agent loop — ` +
-      `the confirm flag forces an out-of-band intent signal from you.`,
+        `Re-run with --confirm if you really mean it. ` +
+        `This guard exists because untrusted message content can reach the agent loop — ` +
+        `the confirm flag forces an out-of-band intent signal from you.`,
       'PERMISSION',
     );
   }

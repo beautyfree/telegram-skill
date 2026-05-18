@@ -47,11 +47,7 @@ export async function enrichUserExtras(client: Client, entity: any): Promise<Pro
  * hammer the API DC pool when a group has 1000 members. Failures are
  * silent (no `.profile` field on that row).
  */
-export async function enrichMemberList(
-  client: Client,
-  rawEntities: any[],
-  concurrency = 8,
-): Promise<void> {
+export async function enrichMemberList(client: Client, rawEntities: any[], concurrency = 8): Promise<void> {
   for (let i = 0; i < rawEntities.length; i += concurrency) {
     const slice = rawEntities.slice(i, i + concurrency);
     const profiles = await Promise.all(slice.map((e) => enrichUserExtras(client, e)));

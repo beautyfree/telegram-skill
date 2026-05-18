@@ -17,33 +17,19 @@
  * Each event is a complete JSON object with `event: '<type>'`.
  */
 import { Api } from 'telegram';
-import { NewMessage, Raw } from 'telegram/events/index.js';
-// gram.js's `events/index.js` only re-exports NewMessage + Raw. The
-// other event constructors exist as standalone files — import direct.
-// @ts-ignore — no .d.ts shipped for these paths
-import { EditedMessage } from 'telegram/events/EditedMessage.js';
-// @ts-ignore
-import { DeletedMessage } from 'telegram/events/DeletedMessage.js';
-// @ts-ignore
+// gram.js's `events/index.js` only re-exports NewMessage + Raw at
+// runtime; the other event constructors live as standalone files.
+// Their .d.ts is shipped — import them directly.
 import { Album } from 'telegram/events/Album.js';
-// @ts-ignore
 import { CallbackQuery } from 'telegram/events/CallbackQuery.js';
-
-import type { Cmd } from './_shared.js';
-import {
-  parsePeer,
-  withClient,
-  serializeMessage,
-  serializeEntity,
-  fail,
-  flagBool,
-  flagNum,
-  flagStr,
-  MESSAGE_FILTER,
-} from './_shared.js';
-import { addSenderNames } from '../enrich/names.js';
-import { autoDownloadSmall, autoDownloadAll } from '../enrich/download.js';
+import { DeletedMessage } from 'telegram/events/DeletedMessage.js';
+import { EditedMessage } from 'telegram/events/EditedMessage.js';
+import { NewMessage, Raw } from 'telegram/events/index.js';
+import { autoDownloadAll, autoDownloadSmall } from '../enrich/download.js';
 import { flattenMessage } from '../enrich/flatten.js';
+import { addSenderNames } from '../enrich/names.js';
+import type { Cmd } from './_shared.js';
+import { fail, flagBool, flagNum, flagStr, MESSAGE_FILTER, parsePeer, serializeEntity, withClient } from './_shared.js';
 
 type ChatType = 'user' | 'bot' | 'group' | 'channel' | undefined;
 
@@ -91,7 +77,12 @@ export const listen: Cmd = async (args, flags) => {
 
   // ── Event allowlist ──
   const wantedEvents = flagStr(flags, 'event')
-    ? new Set(flagStr(flags, 'event')!.split(',').map((s) => s.trim()).filter(Boolean) as EventName[])
+    ? new Set(
+        flagStr(flags, 'event')!
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean) as EventName[],
+      )
     : DEFAULT_EVENTS;
   for (const e of wantedEvents) {
     if (!(ALL_EVENTS as readonly string[]).includes(e)) {
@@ -111,7 +102,10 @@ export const listen: Cmd = async (args, flags) => {
   }
   const excludePeerArg = flagStr(flags, 'exclude-chat');
   const explicitExcludes: string[] = excludePeerArg
-    ? excludePeerArg.split(',').map((s) => s.trim()).filter(Boolean)
+    ? excludePeerArg
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
     : [];
   const typeFlag = flagStr(flags, 'type') as ChatType;
   const excludeType = flagStr(flags, 'exclude-type') as ChatType;
@@ -157,7 +151,7 @@ export const listen: Cmd = async (args, flags) => {
     for (const id of excludeIds) includeIds.delete(id);
 
     process.stdout.write(
-      JSON.stringify({
+      `${JSON.stringify({
         event: 'listen-started',
         peers: peerSummaries,
         chatCount: includeIds.size,
@@ -165,7 +159,7 @@ export const listen: Cmd = async (args, flags) => {
         excludeType: excludeType ?? null,
         events: Array.from(wantedEvents),
         ts: Math.floor(Date.now() / 1000),
-      }) + '\n',
+      })}\n`,
     );
 
     const since = flagNum(flags, 'since');
@@ -176,7 +170,7 @@ export const listen: Cmd = async (args, flags) => {
     }
 
     function emit(payload: Record<string, unknown>): void {
-      process.stdout.write(JSON.stringify(payload) + '\n');
+      process.stdout.write(`${JSON.stringify(payload)}\n`);
     }
 
     // ── new_message ──
@@ -212,7 +206,11 @@ export const listen: Cmd = async (args, flags) => {
         const peerId = peerIdOf(m.peerId);
         if (!inSet(peerId)) return;
         if (incoming && m.out) return;
-        try { await addSenderNames(client, [m]); } catch { /* non-fatal */ }
+        try {
+          await addSenderNames(client, [m]);
+        } catch {
+          /* non-fatal */
+        }
         emit({ event: 'edit_message', ...flattenMessage(m) });
       }, new EditedMessage({}));
     }
@@ -237,7 +235,9 @@ export const listen: Cmd = async (args, flags) => {
         try {
           await autoDownloadSmall(client, msgs, accountId);
           await addSenderNames(client, msgs);
-        } catch { /* non-fatal */ }
+        } catch {
+          /* non-fatal */
+        }
         emit({ event: 'album', items: msgs.map((mm: any) => flattenMessage(mm)) });
       }, new Album({}));
     }
@@ -285,8 +285,7 @@ export const listen: Cmd = async (args, flags) => {
           wantedEvents.has('user_typing') &&
           (cls === 'UpdateUserTyping' || cls === 'UpdateChatUserTyping' || cls === 'UpdateChannelUserTyping')
         ) {
-          const peerId =
-            update.userId?.toString?.() ?? update.chatId?.toString?.() ?? update.channelId?.toString?.();
+          const peerId = update.userId?.toString?.() ?? update.chatId?.toString?.() ?? update.channelId?.toString?.();
           if (peerId && !includeIds.has(peerId) && !includeIds.has(update.fromId?.userId?.toString?.() ?? '')) {
             // typing events come scoped to user OR chat; let either match
           }

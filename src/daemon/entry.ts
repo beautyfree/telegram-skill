@@ -5,8 +5,8 @@
  * exit.
  */
 import { config as dotenvConfig } from 'dotenv';
-import { startDaemon } from './server.js';
 import { logger } from '../logger.js';
+import { startDaemon } from './server.js';
 
 dotenvConfig();
 

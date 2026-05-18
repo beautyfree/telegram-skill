@@ -11,17 +11,16 @@
  * in as you. Treat it like a password — and never paste it into a
  * shared chat or commit it.
  */
-import { mkdirSync } from 'fs';
-import { join } from 'path';
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
-import { TelegramClient, Api } from 'telegram';
+import { TelegramClient } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
-
-import type { Cmd } from './_shared.js';
-import { fail, need, print, flagStr, flagBool, classifyError } from './_shared.js';
 import { FileSession } from '../session.js';
-import { sessionsDir, getAccount, upsertAccount, listAccounts } from '../state.js';
+import { getAccount, listAccounts, sessionsDir, upsertAccount } from '../state.js';
 import { credentialsStatus } from '../telegram.js';
+import type { Cmd } from './_shared.js';
+import { classifyError, fail, flagBool, flagStr, need, print } from './_shared.js';
 
 function apiCreds(): { apiId: number; apiHash: string } {
   const envId = process.env.TELEGRAM_API_ID;
@@ -49,7 +48,10 @@ const exportCmd: Cmd = async (args) => {
   const id = need(args, 0, 'accountId');
   const account = getAccount(id);
   if (!account) {
-    const known = listAccounts().map((a) => a.id).join(', ') || '(none)';
+    const known =
+      listAccounts()
+        .map((a) => a.id)
+        .join(', ') || '(none)';
     fail(`Unknown account ${id}. Known: ${known}`, 'NOT_FOUND');
   }
 
@@ -72,7 +74,7 @@ const exportCmd: Cmd = async (args) => {
   print({ accountId: id, phone: account.phone, username: account.username, session: encoded });
 };
 
-const importCmd: Cmd = async (args, flags) => {
+const importCmd: Cmd = async (_args, flags) => {
   const raw = flagStr(flags, 'string') ?? (flagBool(flags, 'stdin') ? await readStdin() : undefined);
   if (!raw) {
     fail('No session string. Pass it via --string "<blob>" or --stdin.', 'INVALID_ARGS');

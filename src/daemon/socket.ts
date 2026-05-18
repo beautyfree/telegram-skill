@@ -5,10 +5,11 @@
  * the IPC socket lives. We put it under the same shared session-store
  * directory so it tracks `TELEGRAM_AGENT_HOME` overrides.
  */
-import { connect } from 'net';
-import { existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { homedir } from 'os';
+
+import { existsSync } from 'node:fs';
+import { connect } from 'node:net';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
 
 /** Resolve `<TELEGRAM_AGENT_HOME>/daemon.sock`. */
 export function daemonSocketPath(): string {

@@ -5,19 +5,19 @@
  * / `ok` / `need`, and the serializers. Keeps the per-command files focused
  * on the actual gram.js call.
  */
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 
 import {
+  MESSAGE_FILTER,
   parsePeer,
   resolveAccountId,
   safeClient,
-  serializeMessage,
-  serializeEntity,
   safeStringify,
-  MESSAGE_FILTER,
+  serializeEntity,
+  serializeMessage,
 } from '../helpers.js';
 
-export { parsePeer, serializeMessage, serializeEntity, safeStringify, MESSAGE_FILTER };
+export { MESSAGE_FILTER, parsePeer, safeStringify, serializeEntity, serializeMessage };
 
 // ─── arg / flag types ────────────────────────────────────────────────
 
@@ -70,11 +70,24 @@ export function flagNumList(flags: Flags, key: string): number[] | undefined {
 // ─── output ──────────────────────────────────────────────────────────
 
 export function print(value: any): void {
-  process.stdout.write(safeStringify(value) + '\n');
+  process.stdout.write(`${safeStringify(value)}\n`);
 }
 
 export function ok(extra?: Record<string, any>): void {
   print({ ok: true, ...(extra ?? {}) });
+}
+
+/**
+ * Emit a soft warning to stderr without exiting. Use for things the
+ * caller probably wants to know about but that aren't a hard failure
+ * — degraded mode, deferred work, missing optional config.
+ *
+ * Lines are prefixed `[warn]` and end with `\n`. Not JSON — that's
+ * reserved for `fail()`. Agents that parse strictly should ignore
+ * stderr unless `process.exitCode !== 0`.
+ */
+export function warn(message: string): void {
+  process.stderr.write(`[warn] ${message}\n`);
 }
 
 /**
@@ -93,7 +106,7 @@ export type ErrorCode = 'INVALID_ARGS' | 'NOT_FOUND' | 'FLOOD_WAIT' | 'PERMISSIO
 export function fail(message: string, code: ErrorCode | number = 'UNKNOWN', exitCode = 1): never {
   // Back-compat: second arg used to be an exit code (number). Keep working.
   const errorCode: ErrorCode = typeof code === 'string' ? code : 'UNKNOWN';
-  process.stderr.write(JSON.stringify({ ok: false, error: message, code: errorCode }) + '\n');
+  process.stderr.write(`${JSON.stringify({ ok: false, error: message, code: errorCode })}\n`);
   process.exit(typeof code === 'number' ? code : exitCode);
 }
 
@@ -105,9 +118,11 @@ export function fail(message: string, code: ErrorCode | number = 'UNKNOWN', exit
 export function classifyError(err: unknown): ErrorCode {
   const msg = (err as Error)?.message ?? String(err);
   if (/FLOOD_WAIT/i.test(msg)) return 'FLOOD_WAIT';
-  if (/PEER_ID_INVALID|USERNAME_NOT_OCCUPIED|MSG_ID_INVALID|CHANNEL_INVALID|USER_NOT_PARTICIPANT/i.test(msg)) return 'NOT_FOUND';
+  if (/PEER_ID_INVALID|USERNAME_NOT_OCCUPIED|MSG_ID_INVALID|CHANNEL_INVALID|USER_NOT_PARTICIPANT/i.test(msg))
+    return 'NOT_FOUND';
   if (/PREMIUM/i.test(msg)) return 'PREMIUM';
-  if (/CHAT_ADMIN_REQUIRED|CHAT_WRITE_FORBIDDEN|USER_PRIVACY_RESTRICTED|BANNED_RIGHTS|RIGHT_FORBIDDEN/i.test(msg)) return 'PERMISSION';
+  if (/CHAT_ADMIN_REQUIRED|CHAT_WRITE_FORBIDDEN|USER_PRIVACY_RESTRICTED|BANNED_RIGHTS|RIGHT_FORBIDDEN/i.test(msg))
+    return 'PERMISSION';
   return 'UNKNOWN';
 }
 
@@ -128,10 +143,7 @@ export function collectIds(tokens: string[]): number[] {
 
 // ─── client / peer ───────────────────────────────────────────────────
 
-export async function withClient<T>(
-  flags: Flags,
-  fn: (client: any, accountId: string) => Promise<T>
-): Promise<T> {
+export async function withClient<T>(flags: Flags, fn: (client: any, accountId: string) => Promise<T>): Promise<T> {
   const accountId = resolveAccountId(flagStr(flags, 'account'));
   const client = await safeClient(accountId);
   return fn(client, accountId);

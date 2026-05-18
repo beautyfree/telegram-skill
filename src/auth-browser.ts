@@ -1,22 +1,21 @@
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { randomBytes } from 'crypto';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import open from 'open';
 
 import { renderAuthPage } from './auth-page.js';
-import { listAccounts, setStoredCredentials } from './state.js';
+import { logger } from './logger.js';
+import { type AccountRecord, listAccounts, setStoredCredentials } from './state.js';
 import {
+  clientForAccount,
+  credentialsStatus,
   loginStart,
   loginSubmitCode,
   loginSubmitPassword,
-  credentialsStatus,
-  clientForAccount,
   TelegramAuthError,
 } from './telegram.js';
-import { AccountRecord } from './state.js';
-import { logger } from './logger.js';
 
 function loadPkgMeta(): { name: string; version: string; repoUrl?: string } {
   try {
@@ -94,7 +93,7 @@ export function runBrowserLogin(opts: { timeoutMs?: number } = {}): Promise<Acco
       logger.info(`Opening browser for Telegram login: ${authUrl}`);
       try {
         await open(authUrl);
-      } catch (err) {
+      } catch (_err) {
         logger.warn(`Failed to auto-open the browser. Open this URL manually: ${authUrl}`);
       }
     });
@@ -139,7 +138,8 @@ export function runBrowserLogin(opts: { timeoutMs?: number } = {}): Promise<Acco
         const status = credentialsStatus();
         if (status.source === 'env') {
           return sendJson(res, 400, {
-            error: 'TELEGRAM_API_ID/TELEGRAM_API_HASH are set in the environment and take precedence. Unset them to edit here.',
+            error:
+              'TELEGRAM_API_ID/TELEGRAM_API_HASH are set in the environment and take precedence. Unset them to edit here.',
           });
         }
         const api_id = String(body.api_id || '').trim();

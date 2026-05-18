@@ -5,12 +5,12 @@
  *
  * Wire format is documented in protocol.ts.
  */
-import { connect, Socket } from 'net';
-import { randomBytes } from 'crypto';
-import { existsSync } from 'fs';
 
-import { daemonSocketPath } from './socket.js';
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { connect, type Socket } from 'node:net';
 import type { Request, Response } from './protocol.js';
+import { daemonSocketPath } from './socket.js';
 
 /**
  * Forward a single command to the daemon and stream its output. The
@@ -38,19 +38,24 @@ export function sendToDaemon(req: Omit<Request, 'id'>): Promise<number | null> {
     let connected = false;
 
     const fail = (code: number | null) => {
-      try { sock.destroy(); } catch { /* noop */ }
+      try {
+        sock.destroy();
+      } catch {
+        /* noop */
+      }
       resolve(code);
     };
 
     sock.once('connect', () => {
       connected = true;
-      sock.write(JSON.stringify({ id, ...req, env: { TELEGRAM_AGENT_HOME: process.env.TELEGRAM_AGENT_HOME } }) + '\n');
+      sock.write(`${JSON.stringify({ id, ...req, env: { TELEGRAM_AGENT_HOME: process.env.TELEGRAM_AGENT_HOME } })}\n`);
     });
 
     sock.on('data', (chunk) => {
       buf += chunk.toString('utf8');
-      let nl;
-      while ((nl = buf.indexOf('\n')) !== -1) {
+      while (true) {
+        const nl = buf.indexOf('\n');
+        if (nl === -1) break;
         const line = buf.slice(0, nl);
         buf = buf.slice(nl + 1);
         if (!line.trim()) continue;
@@ -68,7 +73,7 @@ export function sendToDaemon(req: Omit<Request, 'id'>): Promise<number | null> {
             sock.end();
           }
         } else {
-          process.stderr.write(JSON.stringify({ ok: false, error: frame.error }) + '\n');
+          process.stderr.write(`${JSON.stringify({ ok: false, error: frame.error })}\n`);
           exitCode = 1;
           sock.end();
         }

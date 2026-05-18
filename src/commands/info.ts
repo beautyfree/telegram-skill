@@ -16,7 +16,7 @@
 import { Api } from 'telegram';
 
 import type { Cmd } from './_shared.js';
-import { parsePeer, withClient, serializeEntity, serializeDialog, need, print } from './_shared.js';
+import { need, parsePeer, print, serializeDialog, serializeEntity, withClient } from './_shared.js';
 
 function normalizePeerToken(raw: string): string {
   let t = raw.trim();
@@ -32,7 +32,10 @@ function extractFirstUrlFromText(text: string | undefined): string | undefined {
   return text.match(URL_RE)?.[0];
 }
 
-async function fetchLinkPreview(client: any, url: string): Promise<{ url: string; title?: string; description?: string } | undefined> {
+async function fetchLinkPreview(
+  client: any,
+  url: string,
+): Promise<{ url: string; title?: string; description?: string } | undefined> {
   const fullUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
   try {
     const result: any = await client.invoke(new Api.messages.GetWebPagePreview({ message: fullUrl }));
@@ -87,7 +90,10 @@ async function userFullInfo(client: any, entity: any): Promise<{ fullInfo?: any;
   return { fullInfo: flat, commonGroups };
 }
 
-async function channelFullInfo(client: any, entity: any): Promise<{ fullInfo?: any; memberCount?: number } | undefined> {
+async function channelFullInfo(
+  client: any,
+  entity: any,
+): Promise<{ fullInfo?: any; memberCount?: number } | undefined> {
   // gram.js exposes channelFull on Channel entities. The chat (chat.MegaGroup)
   // path goes through messages.GetFullChat instead.
   if (!entity) return undefined;
@@ -145,7 +151,8 @@ export const info: Cmd = async (args, flags) => {
 
     // Pull a preview of the first URL we find in the bio / about text.
     const bioText = fullInfo?.bio ?? fullInfo?.about;
-    const firstUrl = extractFirstUrlFromText(bioText) ?? (entity?.username ? undefined : extractFirstUrlFromText(entity?.username));
+    const firstUrl =
+      extractFirstUrlFromText(bioText) ?? (entity?.username ? undefined : extractFirstUrlFromText(entity?.username));
     const linkPreview = firstUrl ? await fetchLinkPreview(client, firstUrl) : undefined;
 
     const payload: any = {

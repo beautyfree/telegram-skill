@@ -7,15 +7,14 @@
  * Inspired by avemeva's doctor command. We don't have a native TDLib
  * dependency here, so we skip that check; the rest applies.
  */
-import { existsSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
-
-import type { Cmd } from './_shared.js';
-import { listAccounts } from '../state.js';
-import { credentialsStatus, clientForAccount } from '../telegram.js';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { daemonSocketPath, isDaemonRunning } from '../daemon/socket.js';
-import { print, flagStr } from './_shared.js';
+import { listAccounts } from '../state.js';
+import { clientForAccount, credentialsStatus } from '../telegram.js';
+import type { Cmd } from './_shared.js';
+import { flagStr, print } from './_shared.js';
 
 const VERSION = '1.0.0';
 
@@ -61,7 +60,7 @@ export const doctor: Cmd = async (_, flags) => {
       checks.push({
         check: 'session',
         status: 'ok',
-        detail: `signed in as ${(me as any)?.username ? '@' + (me as any).username : (me as any)?.phone} (id ${which})`,
+        detail: `signed in as ${(me as any)?.username ? `@${(me as any).username}` : (me as any)?.phone} (id ${which})`,
       });
     } catch (err) {
       checks.push({

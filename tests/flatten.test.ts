@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { flattenMessage, flattenMessages, smartDate, flattenButtons } from '../src/enrich/flatten.js';
+import { describe, expect, it } from 'vitest';
+import { flattenButtons, flattenMessage, flattenMessages, smartDate } from '../src/enrich/flatten.js';
 
 describe('smartDate', () => {
   const NOW = Date.UTC(2026, 4, 19, 14, 0, 0); // 2026-05-19 14:00 UTC
@@ -104,9 +104,23 @@ describe('flattenMessage', () => {
     };
     const flat = flattenMessage(raw, NOW);
     expect(flat.buttons).toEqual([
-      { index: 1, row: 0, col: 0, label: 'Yes', type: 'KeyboardButtonCallback', data: Buffer.from('ok').toString('base64') },
+      {
+        index: 1,
+        row: 0,
+        col: 0,
+        label: 'Yes',
+        type: 'KeyboardButtonCallback',
+        data: Buffer.from('ok').toString('base64'),
+      },
       { index: 2, row: 0, col: 1, label: 'Docs', type: 'KeyboardButtonUrl', url: 'https://example.com' },
-      { index: 3, row: 1, col: 0, label: 'Cancel', type: 'KeyboardButtonCallback', data: Buffer.from('no').toString('base64') },
+      {
+        index: 3,
+        row: 1,
+        col: 0,
+        label: 'Cancel',
+        type: 'KeyboardButtonCallback',
+        data: Buffer.from('no').toString('base64'),
+      },
     ]);
   });
 

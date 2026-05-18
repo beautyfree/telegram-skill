@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, rmSync } from 'fs';
-import { tmpdir, homedir } from 'os';
-import { join } from 'path';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let tmpHome: string;
 
@@ -18,9 +18,7 @@ afterEach(() => {
 describe('captionPaths', () => {
   it('honors TELEGRAM_AGENT_HOME env override', async () => {
     process.env.TELEGRAM_AGENT_HOME = tmpHome;
-    const { captionPaths, MODEL_ID, MODEL_DTYPE, CAPTION_DEFAULT_PORT } = await import(
-      '../src/caption/paths.js'
-    );
+    const { captionPaths, MODEL_ID, MODEL_DTYPE, CAPTION_DEFAULT_PORT } = await import('../src/caption/paths.js');
     const p = captionPaths();
     expect(p.baseDir).toBe(tmpHome);
     expect(p.modelsDir).toBe(join(tmpHome, 'models'));

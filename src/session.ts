@@ -14,13 +14,15 @@
  * on-disk layout under `~/.telegram-agent/sessions/<accountId>/` is
  * human-readable and stable across cwds.
  */
-import { resolve, join } from 'path';
-import { chmodSync } from 'fs';
-import { MemorySession } from 'telegram/sessions/index.js';
-import { AuthKey } from 'telegram/crypto/AuthKey.js';
-// node-localstorage has no @types package.
-// @ts-ignore
+
+import { chmodSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+// node-localstorage has no @types package. The runtime export is real;
+// types are loose `any` after the import.
+// @ts-ignore — no types shipped
 import { LocalStorage } from 'node-localstorage';
+import { AuthKey } from 'telegram/crypto/AuthKey.js';
+import { MemorySession } from 'telegram/sessions/index.js';
 
 export class FileSession extends MemorySession {
   private readonly store: any;
@@ -35,7 +37,9 @@ export class FileSession extends MemorySession {
     this.dir = resolve(absoluteDir);
     this.store = new LocalStorage(this.dir);
     // Lock perms on the dir; FileSession files live inside.
-    try { chmodSync(this.dir, 0o700); } catch {}
+    try {
+      chmodSync(this.dir, 0o700);
+    } catch {}
   }
 
   private read(key: string): unknown {
@@ -53,17 +57,16 @@ export class FileSession extends MemorySession {
     // node-localstorage URL-encodes the key into a filename. Mirror the
     // encoding here so chmod hits the right file. Failure is non-fatal —
     // the umask default still applies.
-    try { chmodSync(join(this.dir, encodeURIComponent(key)), 0o600); } catch {}
+    try {
+      chmodSync(join(this.dir, encodeURIComponent(key)), 0o600);
+    } catch {}
   }
 
   async load(): Promise<void> {
     const persisted = this.read('authKey');
     if (persisted && typeof persisted === 'object') {
       const key = new AuthKey();
-      const buf =
-        'data' in (persisted as any)
-          ? Buffer.from((persisted as any).data)
-          : Buffer.from(persisted as any);
+      const buf = 'data' in (persisted as any) ? Buffer.from((persisted as any).data) : Buffer.from(persisted as any);
       await key.setKey(buf);
       // Direct field assignment so we don't re-trigger the `set authKey`
       // accessor (which would round-trip the value back to disk pointlessly).
@@ -89,8 +92,9 @@ export class FileSession extends MemorySession {
     super.setDC(dcId, serverAddress, port);
   }
 
-  // @ts-ignore — MemorySession declares authKey as a property; we replace
-  // it with an accessor pair that mirrors values into the file store.
+  // MemorySession declares authKey as a property; we replace it with
+  // an accessor pair that mirrors values into the file store.
+  // @ts-ignore
   set authKey(value: AuthKey | undefined) {
     (this as any)._authKey = value;
     this.write('authKey', value?.getKey());
@@ -103,7 +107,7 @@ export class FileSession extends MemorySession {
     const rows = (this as any)._entitiesToRows(tlo);
     if (!rows) return;
     for (const row of rows as any[][]) {
-      row.push(new Date().getTime().toString());
+      row.push(Date.now().toString());
       this.write(String(row[0]), row);
     }
   }

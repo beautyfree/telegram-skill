@@ -11,14 +11,13 @@
  * file under 200 lines.
  */
 import { config as dotenvConfig } from 'dotenv';
-
-import { logger } from './logger.js';
-import { TelegramAuthError } from './telegram.js';
-import { commandTable } from './commands/index.js';
 import type { Cmd, ParsedArgs } from './commands/_shared.js';
-import { fail, print, classifyError } from './commands/_shared.js';
+import { classifyError, fail, print } from './commands/_shared.js';
+import { commandTable } from './commands/index.js';
 import { sendToDaemon } from './daemon/client.js';
 import { isDaemonRunning } from './daemon/socket.js';
+import { logger } from './logger.js';
+import { TelegramAuthError } from './telegram.js';
 
 dotenvConfig();
 
@@ -237,14 +236,14 @@ if (process.argv.includes('--caption-daemon')) {
   import('./caption/daemon.js').then((m) => m.runCaptionDaemon());
 } else {
   dispatch(process.argv.slice(2))
-  .then(() => {
-    // login holds the auth-browser HTTP server alive on purpose. listen
-    // never resolves. Everything else should exit clean so gram.js's
-    // persistent WebSocket doesn't pin the process.
-    const verb = process.argv[2];
-    if (verb !== 'login' && verb !== 'listen') process.exit(0);
-  })
-  .catch((err) => {
-    fail((err as Error).message ?? String(err));
-  });
+    .then(() => {
+      // login holds the auth-browser HTTP server alive on purpose. listen
+      // never resolves. Everything else should exit clean so gram.js's
+      // persistent WebSocket doesn't pin the process.
+      const verb = process.argv[2];
+      if (verb !== 'login' && verb !== 'listen') process.exit(0);
+    })
+    .catch((err) => {
+      fail((err as Error).message ?? String(err));
+    });
 }

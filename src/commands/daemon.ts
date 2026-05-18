@@ -6,14 +6,13 @@
  *   daemon stop    — terminate the running daemon
  *   daemon status  — JSON: { running, pid?, socket, idleAfter }
  */
-import { existsSync, readFileSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs';
-import { join, dirname } from 'path';
-
-import type { Cmd, CmdGroup } from './_shared.js';
-import { print, ok, fail, flagNum, flagBool } from './_shared.js';
-import { daemonSocketPath, isDaemonRunning } from '../daemon/socket.js';
-import { spawnDaemonIfNeeded, daemonLogPath } from '../daemon/spawn.js';
+import { closeSync, existsSync, openSync, readFileSync, readSync, statSync, unlinkSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { DAEMON_IDLE_MS } from '../daemon/protocol.js';
+import { daemonSocketPath, isDaemonRunning } from '../daemon/socket.js';
+import { daemonLogPath, spawnDaemonIfNeeded } from '../daemon/spawn.js';
+import type { Cmd, CmdGroup } from './_shared.js';
+import { fail, flagBool, flagNum, ok, print } from './_shared.js';
 
 const pidFilePath = (): string => join(dirname(daemonSocketPath()), 'daemon.pid');
 
@@ -38,8 +37,16 @@ const stop: Cmd = async () => {
     process.kill(pid, 'SIGTERM');
   } catch (err) {
     // pid may already be dead — clean up stale state and move on.
-    try { unlinkSync(pidFile); } catch { /* noop */ }
-    try { unlinkSync(daemonSocketPath()); } catch { /* noop */ }
+    try {
+      unlinkSync(pidFile);
+    } catch {
+      /* noop */
+    }
+    try {
+      unlinkSync(daemonSocketPath());
+    } catch {
+      /* noop */
+    }
     fail(`pid ${pid} not running: ${(err as Error).message}`);
   }
   ok({ stopped: pid });
@@ -92,7 +99,7 @@ const log: Cmd = async (_, flags) => {
   if (flagBool(flags, 'json')) {
     print({ ok: true, path, lines: tail });
   } else {
-    for (const l of tail) process.stdout.write(l + '\n');
+    for (const l of tail) process.stdout.write(`${l}\n`);
   }
 };
 

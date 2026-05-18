@@ -14,18 +14,11 @@
  * built-in `http` instead of Bun.serve, and Node's child_process spawn
  * for detach instead of Bun.spawn.
  */
-import {
-  appendFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  unlinkSync,
-  writeFileSync,
-} from 'fs';
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { join } from 'path';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { join } from 'node:path';
 
-import { captionPaths, MODEL_ID, MODEL_DTYPE, CAPTION_DEFAULT_PORT, CAPTION_IDLE_MS } from './paths.js';
+import { CAPTION_DEFAULT_PORT, CAPTION_IDLE_MS, captionPaths, MODEL_DTYPE, MODEL_ID } from './paths.js';
 
 function safeUnlink(p: string): void {
   try {

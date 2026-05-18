@@ -1,6 +1,6 @@
 {
   "name": "telegram-agent",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~0 context tokens until your prompt mentions Telegram. Standalone CLI (`telegram-agent`) talks to Telegram MTProto directly via gram.js. JSON-first output. One-command install for every major agent client. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
   "type": "module",
   "main": "dist/cli.js",
@@ -81,8 +81,10 @@
     "cli": "node dist/cli.js",
     "dev": "tsx watch src/cli.ts",
     "prepublishOnly": "npm run build && chmod +x dist/cli.js",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "npm run build && vitest run",
+    "test:watch": "vitest",
+    "lint": "biome check src tests",
+    "format": "biome format --write src tests"
   },
   "dependencies": {
     "big-integer": "^1.6.52",
@@ -91,6 +93,7 @@
     "telegram": "^2.19.10"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@types/node": "^20.10.5",
     "@vitest/coverage-v8": "^2.1.9",
     "tsx": "^4.19.2",

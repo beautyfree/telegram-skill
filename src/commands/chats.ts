@@ -6,20 +6,19 @@
  *   chats members   — list participants of a group/channel
  */
 import { Api } from 'telegram';
-
+import { enrichMemberList } from '../enrich/profiles.js';
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
-  parsePeer,
-  withClient,
-  serializeDialog,
-  serializeEntity,
-  need,
-  print,
   flagBool,
   flagNum,
   flagStr,
+  need,
+  parsePeer,
+  print,
+  serializeDialog,
+  serializeEntity,
+  withClient,
 } from './_shared.js';
-import { enrichMemberList } from '../enrich/profiles.js';
 
 /**
  * Map a high-level `--type` keyword to a predicate over a gram.js Dialog.
@@ -77,9 +76,7 @@ const search: Cmd = async (args, flags) => {
       // Public Telegram search — useful for discovering channels you're
       // not in yet. Server-side, won't include your private chats. Single
       // shot — Telegram returns at most `limit` results, no pagination.
-      const result: any = await client.invoke(
-        new Api.contacts.Search({ q: query, limit })
-      );
+      const result: any = await client.invoke(new Api.contacts.Search({ q: query, limit }));
       for (const c of result.chats ?? []) matches.push(serializeEntity(c));
       for (const u of result.users ?? []) matches.push(serializeEntity(u));
       print({ items: matches, hasMore: false, nextOffset: null });

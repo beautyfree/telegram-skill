@@ -17,10 +17,13 @@ export interface PackageMeta {
 }
 
 function escapeText(s: string): string {
-  return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+  return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] as string);
 }
 function escapeAttr(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string,
+  );
 }
 
 export function renderAuthPage(
@@ -28,7 +31,7 @@ export function renderAuthPage(
   accounts: { id: string; phone: string; username?: string }[],
   creds: CredentialsHint,
   env: EnvSnapshot,
-  pkg: PackageMeta
+  pkg: PackageMeta,
 ): string {
   const brandLink = pkg.repoUrl
     ? `<a href="${escapeAttr(pkg.repoUrl)}" target="_blank" rel="noopener noreferrer">${escapeText(pkg.name)}</a>`
@@ -242,7 +245,7 @@ export function renderAuthPage(
   const clearErr = (id) => { $(id).classList.remove('show'); };
 
   function escapeHtml(s) {
-    return String(s).replace(/[&<>\"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[c]));
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   }
 
   function renderAccounts() {

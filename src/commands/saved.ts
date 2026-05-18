@@ -10,28 +10,27 @@
  *   saved delete-history <peer>  Wipe a saved sub-dialog (destructive)
  *   saved toggle-pin <peer>    Pin/unpin a saved sub-dialog
  */
-import { Api } from 'telegram';
+
 import bigInt from 'big-integer';
+import { Api } from 'telegram';
 
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
-  withClient,
-  inputPeerOf,
-  serializeMessage,
-  need,
-  print,
-  ok,
   flagBool,
+  flagList,
   flagNum,
   flagStr,
-  flagList,
+  inputPeerOf,
+  need,
+  ok,
+  print,
+  serializeMessage,
+  withClient,
 } from './_shared.js';
 
 const tags: Cmd = async (_, flags) => {
   await withClient(flags, async (client) => {
-    const result: any = await client.invoke(
-      new Api.messages.GetSavedReactionTags({ hash: bigInt(0) as any })
-    );
+    const result: any = await client.invoke(new Api.messages.GetSavedReactionTags({ hash: bigInt(0) as any }));
     print(result);
   });
 };
@@ -48,9 +47,7 @@ const tagRename: Cmd = async (args, flags) => {
 
 const defaultTags: Cmd = async (_, flags) => {
   await withClient(flags, async (client) => {
-    const result: any = await client.invoke(
-      new Api.messages.GetDefaultTagReactions({ hash: bigInt(0) as any })
-    );
+    const result: any = await client.invoke(new Api.messages.GetDefaultTagReactions({ hash: bigInt(0) as any }));
     print(result);
   });
 };
@@ -97,7 +94,7 @@ const dialogs: Cmd = async (_, flags) => {
         offsetPeer: new Api.InputPeerEmpty(),
         limit: flagNum(flags, 'limit') ?? 50,
         hash: bigInt(0) as any,
-      })
+      }),
     );
     print(result);
   });
@@ -118,7 +115,7 @@ const history: Cmd = async (args, flags) => {
         maxId: 0,
         minId: 0,
         hash: bigInt(0) as any,
-      })
+      }),
     );
     const items = (result.messages ?? []).map(serializeMessage);
     const hasMore = items.length >= limit;
@@ -137,7 +134,7 @@ const deleteHistory: Cmd = async (args, flags) => {
         maxId: flagNum(flags, 'max-id') ?? 0,
         minDate: flagNum(flags, 'min-date'),
         maxDate: flagNum(flags, 'max-date'),
-      })
+      }),
     );
     print(result);
   });
@@ -151,7 +148,7 @@ const togglePin: Cmd = async (args, flags) => {
       new Api.messages.ToggleSavedDialogPin({
         pinned: flagBool(flags, 'pinned'),
         peer: new Api.InputDialogPeer({ peer: inputPeer }),
-      })
+      }),
     );
     ok();
   });

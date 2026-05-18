@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
-import { homedir } from 'os';
-import { join } from 'path';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 export interface AccountRecord {
   id: string;
@@ -42,8 +42,12 @@ function ensureDirs(): void {
   if (!existsSync(sessionsDir)) mkdirSync(sessionsDir, { recursive: true });
   // Tighten perms each time — cheap, idempotent, and survives any external
   // chmod that loosened the tree.
-  try { chmodSync(baseDir, 0o700); } catch {}
-  try { chmodSync(sessionsDir, 0o700); } catch {}
+  try {
+    chmodSync(baseDir, 0o700);
+  } catch {}
+  try {
+    chmodSync(sessionsDir, 0o700);
+  } catch {}
 }
 
 function defaultState(): StateShape {
@@ -100,4 +104,3 @@ export function setStoredCredentials(creds: ApiCredentials): void {
   state.credentials = creds;
   saveState();
 }
-

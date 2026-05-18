@@ -6,13 +6,11 @@
  * (not the unix socket we use for the main daemon) because the model
  * load is so much heavier — easier to debug + monitor in isolation.
  */
-import { existsSync, readFileSync } from 'fs';
-import { spawn } from 'child_process';
 
-import {
-  captionPaths,
-  CAPTION_DEFAULT_PORT,
-} from './paths.js';
+import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+
+import { CAPTION_DEFAULT_PORT, captionPaths } from './paths.js';
 
 function readCaptionPid(): number | null {
   const { pidFile } = captionPaths();
@@ -108,10 +106,7 @@ export interface CaptionResult {
  * Caption one or more local image files via the caption daemon.
  * Auto-spawns the daemon if not running.
  */
-export async function captionFiles(
-  files: string[],
-  maxTokens?: number,
-): Promise<CaptionResult | CaptionResult[]> {
+export async function captionFiles(files: string[], maxTokens?: number): Promise<CaptionResult | CaptionResult[]> {
   const url = await ensureCaptionDaemon();
   const res = await fetch(`${url}/caption`, {
     method: 'POST',

@@ -1,11 +1,11 @@
-import { Api, TelegramClient } from 'telegram';
+import { randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
+import { join } from 'node:path';
 import bigInt from 'big-integer';
-import { homedir, tmpdir } from 'os';
-import { join } from 'path';
-import { mkdirSync, existsSync, writeFileSync } from 'fs';
-import { randomBytes } from 'crypto';
+import { Api, type TelegramClient } from 'telegram';
 
-import { listAccounts, getAccount } from './state.js';
+import { getAccount, listAccounts } from './state.js';
 import { clientForAccount, TelegramAuthError } from './telegram.js';
 
 // Downloads land under the telegram-agent home, unless overridden via
@@ -106,7 +106,7 @@ export function safeStringify(obj: any): string {
       if (typeof v === 'bigint') return v.toString();
       return v;
     },
-    2
+    2,
   );
 }
 
@@ -127,7 +127,7 @@ export function resolveAccountId(explicit?: string): string {
   }
   if (accounts.length > 1) {
     throw new Error(
-      `Multiple accounts available: ${accounts.map((a) => a.username || a.phone).join(', ')}. Pass \`accountId\`.`
+      `Multiple accounts available: ${accounts.map((a) => a.username || a.phone).join(', ')}. Pass \`accountId\`.`,
     );
   }
   return accounts[0].id;
@@ -139,7 +139,7 @@ export async function safeClient(accountId: string): Promise<TelegramClient> {
   } catch (err) {
     if (err instanceof TelegramAuthError) {
       throw new Error(
-        `Telegram session for ${accountId} is no longer valid. Call \`login\` to re-authorize, or \`logout\` to remove the account.`
+        `Telegram session for ${accountId} is no longer valid. Call \`login\` to re-authorize, or \`logout\` to remove the account.`,
       );
     }
     throw err;
@@ -170,12 +170,7 @@ export const MESSAGE_FILTER = {
 /** Extract a numeric id string from a TL Peer object (PeerUser/PeerChat/PeerChannel). */
 function peerIdString(p: any): string | undefined {
   if (!p) return undefined;
-  return (
-    p.userId?.toString?.() ??
-    p.chatId?.toString?.() ??
-    p.channelId?.toString?.() ??
-    undefined
-  );
+  return p.userId?.toString?.() ?? p.chatId?.toString?.() ?? p.channelId?.toString?.() ?? undefined;
 }
 
 export function serializeMessage(m: any) {

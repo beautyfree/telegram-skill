@@ -14,7 +14,7 @@
  * Both attach a `downloadPath` field to each affected message. Failures
  * are silent — the absence of `downloadPath` is the signal.
  */
-import { join } from 'path';
+import { join } from 'node:path';
 
 import { ensureDownloadsDir } from '../helpers.js';
 
@@ -74,11 +74,7 @@ async function downloadOne(client: Client, m: Message, accountId: string): Promi
  * `downloadPath`. Runs in parallel but bounded — we slice into chunks
  * of 8 to avoid hammering the gram.js media DC pool.
  */
-export async function autoDownloadSmall(
-  client: Client,
-  messages: Message[],
-  accountId: string,
-): Promise<void> {
+export async function autoDownloadSmall(client: Client, messages: Message[], accountId: string): Promise<void> {
   const eligible = messages.filter(shouldFetchSmall);
   if (!eligible.length) return;
   const CHUNK = 8;
@@ -95,11 +91,7 @@ export async function autoDownloadSmall(
  * Unconditional download — `--auto-download` path. Same parallel chunking,
  * no size predicate.
  */
-export async function autoDownloadAll(
-  client: Client,
-  messages: Message[],
-  accountId: string,
-): Promise<void> {
+export async function autoDownloadAll(client: Client, messages: Message[], accountId: string): Promise<void> {
   const eligible = messages.filter((m: Message) => m.media);
   if (!eligible.length) return;
   const CHUNK = 4; // Lower — large docs eat bandwidth.

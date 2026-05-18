@@ -8,15 +8,15 @@
  * same on-disk store the in-process path uses, so swapping between the
  * two transports is transparent.
  */
-import { createServer, Socket } from 'net';
-import { unlinkSync, existsSync, mkdirSync, writeFileSync } from 'fs';
-import { dirname, join } from 'path';
 
-import { daemonSocketPath } from './socket.js';
-import { DAEMON_IDLE_MS, type Request } from './protocol.js';
-import { logger } from '../logger.js';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createServer, type Socket } from 'node:net';
+import { dirname, join } from 'node:path';
+import type { Cmd } from '../commands/_shared.js';
 import { commandTable } from '../commands/index.js';
-import type { Cmd, CmdGroup } from '../commands/_shared.js';
+import { logger } from '../logger.js';
+import { DAEMON_IDLE_MS, type Request } from './protocol.js';
+import { daemonSocketPath } from './socket.js';
 
 const PID_FILE = (() => {
   const dir = dirname(daemonSocketPath());
@@ -76,7 +76,9 @@ async function runCommand(req: Request, sink: FrameSink): Promise<void> {
         failed = true;
         return true;
       }
-    } catch { /* not a structured error frame */ }
+    } catch {
+      /* not a structured error frame */
+    }
     realErr(s);
     return true;
   };
@@ -102,7 +104,11 @@ export async function startDaemon(): Promise<void> {
 
   // Stale socket from a crashed daemon? Remove and continue.
   if (existsSync(path)) {
-    try { unlinkSync(path); } catch { /* noop */ }
+    try {
+      unlinkSync(path);
+    } catch {
+      /* noop */
+    }
   }
 
   let active = 0;
@@ -112,8 +118,16 @@ export async function startDaemon(): Promise<void> {
     if (active > 0) return;
     idleTimer = setTimeout(() => {
       logger.info(`daemon idle for ${DAEMON_IDLE_MS}ms, exiting`);
-      try { unlinkSync(path); } catch { /* noop */ }
-      try { unlinkSync(PID_FILE); } catch { /* noop */ }
+      try {
+        unlinkSync(path);
+      } catch {
+        /* noop */
+      }
+      try {
+        unlinkSync(PID_FILE);
+      } catch {
+        /* noop */
+      }
       process.exit(0);
     }, DAEMON_IDLE_MS);
   };
@@ -124,13 +138,18 @@ export async function startDaemon(): Promise<void> {
     let buf = '';
     sock.on('data', async (chunk) => {
       buf += chunk.toString('utf8');
-      let nl;
-      while ((nl = buf.indexOf('\n')) !== -1) {
+      while (true) {
+        const nl = buf.indexOf('\n');
+        if (nl === -1) break;
         const line = buf.slice(0, nl);
         buf = buf.slice(nl + 1);
         if (!line.trim()) continue;
         let req: Request;
-        try { req = JSON.parse(line); } catch { continue; }
+        try {
+          req = JSON.parse(line);
+        } catch {
+          continue;
+        }
 
         const id = req.id;
         // Hydrate the daemon's env from the client's request so per-call
@@ -143,13 +162,13 @@ export async function startDaemon(): Promise<void> {
 
         const sink: FrameSink = {
           out(s: string) {
-            sock.write(JSON.stringify({ id, ok: true, out: s }) + '\n');
+            sock.write(`${JSON.stringify({ id, ok: true, out: s })}\n`);
           },
           done() {
-            sock.write(JSON.stringify({ id, ok: true, done: true }) + '\n');
+            sock.write(`${JSON.stringify({ id, ok: true, done: true })}\n`);
           },
           fail(message: string) {
-            sock.write(JSON.stringify({ id, ok: false, error: message, done: true }) + '\n');
+            sock.write(`${JSON.stringify({ id, ok: false, error: message, done: true })}\n`);
           },
         };
 
@@ -160,7 +179,9 @@ export async function startDaemon(): Promise<void> {
       active--;
       if (active === 0) armIdle();
     });
-    sock.on('error', () => { /* ignore */ });
+    sock.on('error', () => {
+      /* ignore */
+    });
   });
 
   server.listen(path, () => {
@@ -172,9 +193,21 @@ export async function startDaemon(): Promise<void> {
   // Graceful shutdown on SIGTERM/SIGINT.
   for (const sig of ['SIGTERM', 'SIGINT']) {
     process.on(sig as any, () => {
-      try { server.close(); } catch { /* noop */ }
-      try { unlinkSync(path); } catch { /* noop */ }
-      try { unlinkSync(PID_FILE); } catch { /* noop */ }
+      try {
+        server.close();
+      } catch {
+        /* noop */
+      }
+      try {
+        unlinkSync(path);
+      } catch {
+        /* noop */
+      }
+      try {
+        unlinkSync(PID_FILE);
+      } catch {
+        /* noop */
+      }
       process.exit(0);
     });
   }

@@ -10,25 +10,26 @@
  * `--file <path>`. `--md` / `--html` switch parse mode; default is plain
  * text (no implicit markdown).
  */
-import { Api } from 'telegram';
+
 import bigInt from 'big-integer';
+import { Api } from 'telegram';
 
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
-  parsePeer,
-  withClient,
-  inputPeerOf,
-  serializeMessage,
-  need,
-  print,
-  ok,
-  fail,
-  readMessageBody,
   collectIds,
+  fail,
   flagBool,
+  flagList,
   flagNum,
   flagStr,
-  flagList,
+  inputPeerOf,
+  need,
+  ok,
+  parsePeer,
+  print,
+  readMessageBody,
+  serializeMessage,
+  withClient,
 } from './_shared.js';
 
 function parseModeOf(flags: any): 'md' | 'html' | undefined {
@@ -87,9 +88,7 @@ const del: Cmd = async (args, flags) => {
 const forward: Cmd = async (args, flags) => {
   const from = flagStr(flags, 'from') ?? args[0];
   const to = flagStr(flags, 'to') ?? args[1];
-  const ids =
-    flagList(flags, 'ids')?.map((n) => Number(n)) ??
-    collectIds(args.slice(2));
+  const ids = flagList(flags, 'ids')?.map((n) => Number(n)) ?? collectIds(args.slice(2));
   if (!from || !to || ids.length === 0) {
     fail('forward needs <from> <to> <id...> (or --from/--to/--ids)');
   }
@@ -144,7 +143,7 @@ const react: Cmd = async (args, flags) => {
   await withClient(flags, async (client) => {
     const inputPeer = await inputPeerOf(client, peer);
 
-    let reaction: any[] = [];
+    const reaction: any[] = [];
     if (remove) {
       // Read existing reactions, drop the targeted one, send the rest back.
       const [m] = await client.getMessages(parsePeer(peer), { ids: [id] });
@@ -166,7 +165,7 @@ const react: Cmd = async (args, flags) => {
         reaction,
         big: flagBool(flags, 'big'),
         addToRecent: flagBool(flags, 'add-to-recent'),
-      })
+      }),
     );
     ok();
   });
@@ -202,21 +201,62 @@ const click: Cmd = async (args, flags) => {
     const asIndex = Number(selector);
     if (Number.isInteger(asIndex) && asIndex > 0) {
       let i = 1;
-      for (const row of buttons) for (const b of row) {
-        if (i === asIndex) target = b;
-        i++;
-      }
+      for (const row of buttons)
+        for (const b of row) {
+          if (i === asIndex) target = b;
+          i++;
+        }
     } else {
-      for (const row of buttons) for (const b of row) {
-        if ((b.text ?? '').trim() === selector) target = b;
-      }
+      for (const row of buttons)
+        for (const b of row) {
+          if ((b.text ?? '').trim() === selector) target = b;
+        }
     }
     if (!target) fail(`Button "${selector}" not found on message ${id}`);
 
-    // Delegate to the button's own click() method — gramjs handles the
-    // callback / url / switch_inline branching internally.
-    const result = await target.click({ silent: flagBool(flags, 'silent') } as any);
-    print(result ?? { ok: true });
+    // Pull the button class so we can return a richer payload than
+    // gramjs's click() result alone — callers want to know "what kind
+    // of button just got pressed".
+    const buttonCls: string | undefined = target.className ?? target.button?.className;
+
+    // Delegate to gramjs — it dispatches by button type internally
+    // (callback, url, switch_inline, web_app, login_url, copy_text, …).
+    let result: any;
+    try {
+      result = await target.click({ silent: flagBool(flags, 'silent') } as any);
+    } catch (err) {
+      // Some button types (BUY, password-callback) can't be auto-clicked
+      // and gramjs throws. Surface the type so the agent can decide.
+      const msg = (err as Error).message ?? String(err);
+      print({ ok: false, error: msg, buttonType: buttonCls, label: target.text });
+      return;
+    }
+
+    // Build an explicit, type-tagged response.
+    const payload: any = { ok: true, label: target.text, buttonType: buttonCls };
+    if (buttonCls === 'KeyboardButtonUrl' || buttonCls === 'KeyboardButtonUrlAuth') {
+      payload.url = target.url ?? target.button?.url;
+    } else if (buttonCls === 'KeyboardButtonWebView' || buttonCls === 'KeyboardButtonSimpleWebView') {
+      payload.url = target.url ?? target.button?.url;
+      payload.kind = 'webapp';
+    } else if (buttonCls === 'KeyboardButtonSwitchInline') {
+      payload.query = target.query ?? target.button?.query;
+      payload.samePeer = target.samePeer ?? target.button?.samePeer ?? false;
+    } else if (buttonCls === 'KeyboardButtonUserProfile') {
+      payload.userId = (target.userId ?? target.button?.userId)?.toString?.();
+    } else if (buttonCls === 'KeyboardButtonCopy') {
+      payload.copyText = target.copyText ?? target.button?.copyText;
+    } else if (buttonCls === 'KeyboardButtonBuy') {
+      payload.kind = 'buy';
+    } else if (buttonCls === 'KeyboardButtonGame') {
+      payload.kind = 'game';
+    }
+    // gramjs's click() returns a BotCallbackAnswer for callback buttons —
+    // surface its message/url if present.
+    if (result?.message) payload.botMessage = result.message;
+    if (result?.url) payload.url = result.url;
+    if (result?.alert !== undefined) payload.alert = result.alert;
+    print(payload);
   });
 };
 

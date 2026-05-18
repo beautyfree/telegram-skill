@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { commandTable } from '../src/commands/index.js';
 
 function get(table: any, path: string[]): any {

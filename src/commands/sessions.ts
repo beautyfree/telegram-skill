@@ -4,11 +4,12 @@
  * These are the only commands that touch the auth-browser. Everything else
  * assumes a session already exists at `~/.telegram-agent/`.
  */
-import type { Cmd } from './_shared.js';
+
+import { runBrowserLogin } from '../auth-browser.js';
 import { listAccounts } from '../state.js';
 import { logoutAccount } from '../telegram.js';
-import { runBrowserLogin } from '../auth-browser.js';
-import { print, ok, need, withClient, serializeEntity } from './_shared.js';
+import type { Cmd } from './_shared.js';
+import { need, ok, print, serializeEntity, withClient } from './_shared.js';
 
 export const login: Cmd = async () => {
   const account = await runBrowserLogin();

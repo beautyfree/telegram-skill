@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { flagStr, flagNum, flagBool, need, classifyError } from '../src/commands/_shared.js';
+import { describe, expect, it } from 'vitest';
+import { classifyError, flagBool, flagNum, flagStr, need } from '../src/commands/_shared.js';
 
 describe('flag helpers', () => {
   it('flagStr returns string flag, undefined for boolean', () => {

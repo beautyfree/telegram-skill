@@ -3,8 +3,8 @@
  * from `daemon.ts` so the client (caption.ts) can read paths without
  * pulling in the model-loading code path.
  */
-import { homedir } from 'os';
-import { join } from 'path';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 export const MODEL_ID = 'onnx-community/Florence-2-base';
 export const MODEL_DTYPE = 'q4';

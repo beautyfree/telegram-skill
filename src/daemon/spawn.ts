@@ -3,10 +3,10 @@
  * in-process execution: if no daemon is running, fork one and wait
  * for the socket to appear (~1-2s).
  */
-import { spawn } from 'child_process';
-import { existsSync, openSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { spawn } from 'node:child_process';
+import { existsSync, openSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { daemonSocketPath, isDaemonRunning } from './socket.js';
 

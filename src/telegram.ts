@@ -1,18 +1,17 @@
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { Api, TelegramClient } from 'telegram';
-import { FileSession } from './session.js';
 import { computeCheck } from 'telegram/Password.js';
-import { mkdirSync } from 'fs';
-import { join } from 'path';
-
-import {
-  sessionsDir,
-  AccountRecord,
-  getAccount,
-  upsertAccount,
-  deleteAccount,
-  getStoredCredentials,
-} from './state.js';
 import { logger } from './logger.js';
+import { FileSession } from './session.js';
+import {
+  type AccountRecord,
+  deleteAccount,
+  getAccount,
+  getStoredCredentials,
+  sessionsDir,
+  upsertAccount,
+} from './state.js';
 
 export type CredentialsSource = 'env' | 'stored' | 'missing';
 
@@ -37,7 +36,7 @@ function apiCreds(): { apiId: number; apiHash: string } {
   const stored = getStoredCredentials();
   if (stored) return { apiId: parseInt(stored.api_id, 10), apiHash: stored.api_hash };
   throw new Error(
-    'Telegram API credentials are not configured. Set TELEGRAM_API_ID + TELEGRAM_API_HASH in the env, or enter them during sign-in.'
+    'Telegram API credentials are not configured. Set TELEGRAM_API_ID + TELEGRAM_API_HASH in the env, or enter them during sign-in.',
   );
 }
 
@@ -50,7 +49,10 @@ function sessionPathFor(accountId: string): string {
 const clientCache = new Map<string, TelegramClient>();
 
 export class TelegramAuthError extends Error {
-  constructor(public accountId: string, message: string) {
+  constructor(
+    public accountId: string,
+    message: string,
+  ) {
     super(message);
     this.name = 'TelegramAuthError';
   }
@@ -106,20 +108,18 @@ export async function loginStart(authId: string, phone: string): Promise<void> {
   pending.set(authId, { phone, client, phoneCodeHash: result.phoneCodeHash });
 }
 
-export type LoginCodeResult =
-  | { status: 'ok'; account: AccountRecord }
-  | { status: 'password_needed' };
+export type LoginCodeResult = { status: 'ok'; account: AccountRecord } | { status: 'password_needed' };
 
 export async function loginSubmitCode(authId: string, code: string): Promise<LoginCodeResult> {
   const entry = pending.get(authId);
-  if (!entry || !entry.phoneCodeHash) throw new Error('Login session not found');
+  if (!entry?.phoneCodeHash) throw new Error('Login session not found');
   try {
     await entry.client.invoke(
       new Api.auth.SignIn({
         phoneNumber: entry.phone,
         phoneCodeHash: entry.phoneCodeHash,
         phoneCode: code,
-      })
+      }),
     );
     const account = await finalizeLogin(authId, entry);
     pending.delete(authId);
@@ -135,7 +135,7 @@ export async function loginSubmitCode(authId: string, code: string): Promise<Log
 
 export async function loginSubmitPassword(authId: string, password: string): Promise<{ account: AccountRecord }> {
   const entry = pending.get(authId);
-  if (!entry || !entry.passwordSrp) throw new Error('No password challenge for this session');
+  if (!entry?.passwordSrp) throw new Error('No password challenge for this session');
   const passSrpCheck = await computeCheck(entry.passwordSrp, password);
   await entry.client.invoke(new Api.auth.CheckPassword({ password: passSrpCheck }));
   const account = await finalizeLogin(authId, entry);
