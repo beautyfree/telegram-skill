@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -40,6 +40,10 @@ let cache: StateShape | null = null;
 function ensureDirs(): void {
   if (!existsSync(baseDir)) mkdirSync(baseDir, { recursive: true });
   if (!existsSync(sessionsDir)) mkdirSync(sessionsDir, { recursive: true });
+  // Tighten perms each time — cheap, idempotent, and survives any external
+  // chmod that loosened the tree.
+  try { chmodSync(baseDir, 0o700); } catch {}
+  try { chmodSync(sessionsDir, 0o700); } catch {}
 }
 
 function defaultState(): StateShape {

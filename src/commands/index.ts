@@ -17,6 +17,7 @@ import { msg } from './msg.js';
 import { action } from './action.js';
 import { media } from './media.js';
 import { saved } from './saved.js';
+import { session } from './session.js';
 import { doctor } from './doctor.js';
 import { listen } from './listen.js';
 import { daemon } from './daemon.js';
@@ -54,6 +55,7 @@ export const commandTable: CmdGroup = {
   action,
   media,
   saved,
+  session,
 
   // ── single-shot leaves
   info,

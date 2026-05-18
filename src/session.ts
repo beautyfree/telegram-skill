@@ -14,7 +14,8 @@
  * on-disk layout under `~/.telegram-agent/sessions/<accountId>/` is
  * human-readable and stable across cwds.
  */
-import { resolve } from 'path';
+import { resolve, join } from 'path';
+import { chmodSync } from 'fs';
 import { MemorySession } from 'telegram/sessions/index.js';
 import { AuthKey } from 'telegram/crypto/AuthKey.js';
 // node-localstorage has no @types package.
@@ -23,6 +24,7 @@ import { LocalStorage } from 'node-localstorage';
 
 export class FileSession extends MemorySession {
   private readonly store: any;
+  private readonly dir: string;
 
   constructor(absoluteDir: string) {
     super();
@@ -30,7 +32,10 @@ export class FileSession extends MemorySession {
     // node-localstorage's constructor calls `path.resolve(_location)`
     // internally, so a fully-qualified path here keeps the storage out
     // of the current working directory.
-    this.store = new LocalStorage(resolve(absoluteDir));
+    this.dir = resolve(absoluteDir);
+    this.store = new LocalStorage(this.dir);
+    // Lock perms on the dir; FileSession files live inside.
+    try { chmodSync(this.dir, 0o700); } catch {}
   }
 
   private read(key: string): unknown {
@@ -45,6 +50,10 @@ export class FileSession extends MemorySession {
 
   private write(key: string, value: unknown): void {
     this.store.setItem(key, JSON.stringify(value));
+    // node-localstorage URL-encodes the key into a filename. Mirror the
+    // encoding here so chmod hits the right file. Failure is non-fatal —
+    // the umask default still applies.
+    try { chmodSync(join(this.dir, encodeURIComponent(key)), 0o600); } catch {}
   }
 
   async load(): Promise<void> {
