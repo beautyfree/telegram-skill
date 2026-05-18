@@ -58,7 +58,15 @@ const list: Cmd = async (_, flags) => {
       .filter((d: any) => (wantUnread ? (d.unreadCount ?? 0) > 0 : true))
       .filter(match)
       .map(serializeDialog);
-    print(out);
+    if (flagBool(flags, 'paginated')) {
+      const limit = flagNum(flags, 'limit') ?? 50;
+      const hasMore = out.length >= limit;
+      // Cursor is the oldest dialog's `date` — pass back as `--offset-date`.
+      const nextOffset = out.length ? Math.min(...out.map((d: any) => d.date ?? 0)) : null;
+      print({ items: out, hasMore, nextOffset });
+    } else {
+      print(out);
+    }
   });
 };
 

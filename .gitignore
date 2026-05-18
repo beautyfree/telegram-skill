@@ -4,7 +4,6 @@ dist/
 .DS_Store
 .env
 .env.local
-package-lock.json
 # Stray session leak — gram.js StoreSession sometimes writes URL-encoded
 # absolute paths as relative filenames under cwd. Tracked separately.
 Users/

@@ -65,14 +65,21 @@ export class FileSession extends MemorySession {
           ? Buffer.from((persisted as any).data)
           : Buffer.from(persisted as any);
       await key.setKey(buf);
+      // Direct field assignment so we don't re-trigger the `set authKey`
+      // accessor (which would round-trip the value back to disk pointlessly).
+      // _authKey is a protected MemorySession field — accessed by name here
+      // because TS marks it private; the runtime behavior is well-defined.
       (this as any)._authKey = key;
     }
-    const dcId = this.read('dcId');
-    if (dcId != null) (this as any)._dcId = dcId;
-    const port = this.read('port');
-    if (port != null) (this as any)._port = port;
-    const serverAddress = this.read('serverAddress');
-    if (serverAddress != null) (this as any)._serverAddress = serverAddress;
+    const dcId = this.read('dcId') as number | null;
+    const port = this.read('port') as number | null;
+    const serverAddress = this.read('serverAddress') as string | null;
+    if (dcId != null && serverAddress != null && port != null) {
+      // Re-use the public MemorySession.setDC API — no private fields needed.
+      // Skip the FileSession override by invoking the base implementation,
+      // so we don't re-write the same values to disk during load.
+      MemorySession.prototype.setDC.call(this, dcId, serverAddress, port);
+    }
   }
 
   setDC(dcId: number, serverAddress: string, port: number): void {

@@ -1,10 +1,13 @@
 /**
- * `media` command group: send and download files.
+ * `media` command group: send, download, transcribe.
  *
- *   media send <chat> <path|url...>  — file, voice note, document, or album
- *   media download <chat> <msgId>    — save attached media to disk
+ *   media send <chat> <path|url...>      — file, voice note, document, or album
+ *   media download <chat> <msgId>        — save attached media to disk
+ *   media transcribe <chat> <msgId>      — server-side transcription for
+ *                                          voice / round-video notes (Premium)
  */
 import { join } from 'path';
+import { Api } from 'telegram';
 
 import type { Cmd, CmdGroup } from './_shared.js';
 import {
@@ -52,4 +55,30 @@ const download: Cmd = async (args, flags) => {
   });
 };
 
-export const media: CmdGroup = { send, download };
+const transcribe: Cmd = async (args, flags) => {
+  const peer = need(args, 0, 'chat');
+  const messageId = Number(need(args, 1, 'messageId'));
+  await withClient(flags, async (client) => {
+    const inputPeer = await client.getInputEntity(parsePeer(peer));
+    try {
+      const r: any = await client.invoke(
+        new Api.messages.TranscribeAudio({ peer: inputPeer, msgId: messageId }),
+      );
+      print({
+        messageId,
+        text: r.text ?? '',
+        pending: r.pending ?? false,
+        transcriptionId: r.transcriptionId?.toString?.() ?? undefined,
+      });
+    } catch (err) {
+      const msg = (err as Error).message;
+      // Most common failure: caller isn't Premium.
+      if (/PREMIUM/i.test(msg)) {
+        fail('Telegram Premium required for server-side transcription.');
+      }
+      throw err;
+    }
+  });
+};
+
+export const media: CmdGroup = { send, download, transcribe };

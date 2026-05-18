@@ -57,19 +57,16 @@ const exportCmd: Cmd = async (args) => {
   const file = new FileSession(dir);
   await file.load();
 
-  const dcId = (file as any)._dcId;
-  const serverAddress = (file as any)._serverAddress;
-  const port = (file as any)._port;
-  const authKey = (file as any)._authKey;
-  if (!dcId || !serverAddress || !port || !authKey) {
+  if (!file.dcId || !file.serverAddress || !file.port || !file.authKey) {
     fail(`Session for ${id} is incomplete on disk. Run \`telegram-agent login\` to re-authorize.`);
   }
 
+  // StringSession inherits MemorySession's public setters — we don't have to
+  // touch private fields. setDC + the authKey setter populate everything
+  // `save()` needs.
   const stringSession = new StringSession('');
-  (stringSession as any)._dcId = dcId;
-  (stringSession as any)._serverAddress = serverAddress;
-  (stringSession as any)._port = port;
-  (stringSession as any)._authKey = authKey;
+  stringSession.setDC(file.dcId, file.serverAddress, file.port);
+  stringSession.authKey = file.authKey;
 
   const encoded = stringSession.save();
   print({ accountId: id, phone: account.phone, username: account.username, session: encoded });
@@ -112,8 +109,8 @@ const importCmd: Cmd = async (args, flags) => {
   mkdirSync(dir, { recursive: true });
   const file = new FileSession(dir);
   await file.load();
-  file.setDC((transient as any).dcId, (transient as any).serverAddress, (transient as any).port);
-  (file as any).authKey = (transient as any).authKey;
+  file.setDC(transient.dcId, transient.serverAddress!, transient.port!);
+  file.authKey = transient.authKey;
 
   upsertAccount({ id: accountId, phone, username, telegram_id: accountId });
   print({ ok: true, accountId, phone, username, sessionDir: dir });

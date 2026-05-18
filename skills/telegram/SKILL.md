@@ -103,7 +103,9 @@ telegram-agent action mark-read <chat> [--max-id N]               # Mark chat as
 telegram-agent action click <chat> <msgId> <button>               # Click inline keyboard (1-based index or exact label)
 
 # Real-time
-telegram-agent listen <chat>                            # Stream new messages from chat (NDJSON)
+telegram-agent listen <chat>                            # Stream new messages from one chat (NDJSON)
+telegram-agent listen --chat @a,@b,@c                   # Multi-chat (comma-separated)
+telegram-agent listen --type user|bot|group|channel     # Subscribe to all dialogs of that type
 telegram-agent listen <chat> --filter photos            # Restrict to media filter
 telegram-agent listen <chat> --since N                  # Replay from unix timestamp
 
@@ -114,6 +116,7 @@ telegram-agent media send <chat> <path> --as-document                    # Force
 telegram-agent media send <chat> <path> --silent --reply-to N            # Silent + reply
 telegram-agent media download <chat> <msgId>                             # Download message media (default: ~/.telegram-agent/downloads/)
 telegram-agent media download <chat> <msgId> --out /tmp/file.jpg         # Override destination
+telegram-agent media transcribe <chat> <msgId>                           # Server-side transcribe voice/round-video note (Premium)
 
 # Saved Messages — reaction-tags (Premium)
 telegram-agent saved tags                                                # List your tag reactions + titles
@@ -134,6 +137,13 @@ telegram-agent saved toggle-pin <peer> [--pinned true|false]             # Pin a
 telegram-agent invoke <Namespace.Class> --params '{...}'                 # Any gram.js Api method
 telegram-agent invoke channels.GetFullChannel --params '{"channel": "@telegram"}'
 telegram-agent invoke messages.GetStickers --params '{"emoticon": "👍", "hash": "0"}'
+# Destructive methods (delete/kick/ban/promote/demote/logout/…) require --confirm.
+telegram-agent invoke channels.DeleteMessages --params '{...}' --confirm
+
+# Portable session export/import
+telegram-agent session export <accountId>                                # Print opaque session blob (StringSession-compatible)
+telegram-agent session import --string <blob>                            # Import a session string + register account
+echo "<blob>" | telegram-agent session import --stdin
 
 # Daemon
 telegram-agent daemon start                          # Spawn background daemon
@@ -298,7 +308,7 @@ The following actions require explicit user confirmation before execution:
 
 ## Pagination
 
-List commands return arrays of records. There's no envelope with `hasMore`/`nextOffset` — paginate by feeding the oldest record's ID back as an offset flag:
+By default, list commands return plain arrays — paginate by feeding the oldest record's ID back as an offset flag:
 
 | Command | Offset flag | Cursor source |
 |---------|------------|---------------|
@@ -309,7 +319,7 @@ List commands return arrays of records. There's no envelope with `hasMore`/`next
 | `chats members` | `--limit` only | Increase limit; no cursor pagination |
 | `saved history` | `--offset-id` | `id` of the oldest Saved message |
 
-A response shorter than your `--limit` means you've reached the end.
+Pass `--paginated` to opt into an envelope shape: `{ items, hasMore, nextOffset }`. Pipe `nextOffset` back into the appropriate offset flag for the next page. A response with `hasMore: false` (or a short page in the default array shape) means end-of-history.
 
 ## Formatting
 

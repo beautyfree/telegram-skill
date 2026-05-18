@@ -30,6 +30,21 @@ import { ensureDownloadsDir } from '../helpers.js';
 
 const TRUNCATE_DEFAULT = 500;
 
+/**
+ * Envelope helper. With `--paginated`, list/search commands return
+ * `{ items, hasMore, nextOffset }` instead of a bare array. The cursor
+ * shape is per-command — documented inline. Default stays as a plain
+ * array for backward compat with existing skill scripts.
+ */
+function paginate<T>(
+  flags: Record<string, string | boolean>,
+  items: T[],
+  cursor: { hasMore: boolean; nextOffset?: string | number | null },
+): T[] | { items: T[]; hasMore: boolean; nextOffset: string | number | null } {
+  if (!flagBool(flags, 'paginated')) return items;
+  return { items, hasMore: cursor.hasMore, nextOffset: cursor.nextOffset ?? null };
+}
+
 /** Truncate long message text unless --full requested. */
 function applyTruncate(msgs: any[], full: boolean): any[] {
   if (full) return msgs;
@@ -120,7 +135,14 @@ const list: Cmd = async (args, flags) => {
         ...(transcripts && transcripts[m.id] ? { transcription: transcripts[m.id] } : {}),
       }));
     }
-    print(applyTruncate(enriched, flagBool(flags, 'full') ?? false));
+    const truncated = applyTruncate(enriched, flagBool(flags, 'full') ?? false);
+    const wantLimit = flagNum(flags, 'limit') ?? 50;
+    // `msg list` paginates by feeding the oldest message id back as
+    // `--offset-id`. hasMore is a best-effort heuristic: a full page implies
+    // more might exist. A short page guarantees end-of-history.
+    const hasMore = truncated.length >= wantLimit;
+    const nextOffset = truncated.length ? Math.min(...truncated.map((m: any) => m.id)) : null;
+    print(paginate(flags, truncated, { hasMore, nextOffset }));
   });
 };
 
@@ -220,7 +242,23 @@ const search: Cmd = async (args, flags) => {
         payload.push(hit);
       }
     }
-    print(applyTruncate(payload, flagBool(flags, 'full') ?? false));
+    const truncated = applyTruncate(payload, flagBool(flags, 'full') ?? false);
+    // Per-chat search: cursor = oldest hit id (same shape as `msg list`).
+    // Global search: cursor is the opaque trio `{rate,id,peer}` — we
+    // encode rate+id into a single base64 string. Consumers pass it back
+    // as `--offset-cursor`. Skipped here pending a real persistence flow;
+    // for now we just signal hasMore so callers know there's more.
+    const hasMore = rawHits.length >= limit;
+    let nextOffset: string | number | null = null;
+    if (truncated.length) {
+      if (chat) {
+        const ids = rawHits.map((m: any) => m.id);
+        nextOffset = Math.min(...ids);
+      } else {
+        nextOffset = null; // global cursor not yet round-tripped — see TODO above
+      }
+    }
+    print(paginate(flags, truncated, { hasMore, nextOffset }));
   });
 };
 
