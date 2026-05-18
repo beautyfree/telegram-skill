@@ -77,12 +77,47 @@ async function userFullInfo(client: any, entity: any): Promise<{ fullInfo?: any;
     const r: any = await client.invoke(
       new Api.messages.GetCommonChats({ userId: inputUser, maxId: 0 as any, limit: 100 }),
     );
-    commonGroups = (r.chats ?? []).map((c: any) => ({
-      id: c.id?.toString?.(),
-      title: c.title,
-      type: c.className,
-      participantsCount: c.participantsCount,
-    }));
+    const rawChats = (r.chats ?? []) as any[];
+
+    // For each common group, look up the user's most recent message —
+    // gives us a `lastActiveDate` so we can sort by "how recently was
+    // this person active here", matching avemeva/kurier's semantics.
+    // Bounded concurrency 5 — large `commonChatsCount` (50+) would
+    // otherwise burst-fire the API DC pool.
+    async function lastActiveAt(chat: any): Promise<number | undefined> {
+      try {
+        const msgs = await client.getMessages(chat, { fromUser: inputUser, limit: 1 });
+        return msgs[0]?.date ?? undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    const CHUNK = 5;
+    const withActivity: any[] = [];
+    for (let i = 0; i < rawChats.length; i += CHUNK) {
+      const slice = rawChats.slice(i, i + CHUNK);
+      const dates = await Promise.all(slice.map((c) => lastActiveAt(c)));
+      for (let j = 0; j < slice.length; j++) {
+        const c = slice[j];
+        withActivity.push({
+          id: c.id?.toString?.(),
+          title: c.title,
+          type: c.className,
+          participantsCount: c.participantsCount,
+          lastActiveDate: dates[j],
+        });
+      }
+    }
+
+    // Sort by lastActiveDate desc; groups with no detectable activity
+    // sink to the bottom in insertion order (i.e. as Telegram returned
+    // them).
+    withActivity.sort((a, b) => {
+      const da = a.lastActiveDate ?? -1;
+      const db = b.lastActiveDate ?? -1;
+      return db - da;
+    });
+    commonGroups = withActivity;
   } catch {
     /* no common chats / privacy */
   }
