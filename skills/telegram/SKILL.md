@@ -117,6 +117,8 @@ telegram-agent media send <chat> <path> --silent --reply-to N            # Silen
 telegram-agent media download <chat> <msgId>                             # Download message media (default: ~/.telegram-agent/downloads/)
 telegram-agent media download <chat> <msgId> --out /tmp/file.jpg         # Override destination
 telegram-agent media transcribe <chat> <msgId>                           # Server-side transcribe voice/round-video note (Premium)
+telegram-agent media caption <chat> <msgId>                              # Local image caption via Florence-2 (needs @huggingface/transformers)
+telegram-agent media caption <chat> <msgId> --max-tokens 80              # Longer caption
 
 # Saved Messages — reaction-tags (Premium)
 telegram-agent saved tags                                                # List your tag reactions + titles
@@ -380,6 +382,16 @@ telegram-agent daemon start    # Start manually
 ```
 
 Bypassed (always run in-process): `login`, `logout`, `doctor`, `daemon *`, `listen`. Force any other command in-process with `--no-daemon`.
+
+A second, independent **caption daemon** (port `127.0.0.1:7313`) is auto-spawned the first time you run `media caption`. It loads Florence-2-base (q4 quantized) via `@huggingface/transformers`, keeps it warm in memory, and idle-exits after 5 minutes. Logs at `~/.telegram-agent/caption.log`.
+
+`media caption` requires the optional peer dep:
+
+```bash
+npm install -g @huggingface/transformers
+```
+
+Without it, the caption daemon exits with a friendly error pointing here. First run downloads ~150 MB of weights to `~/.telegram-agent/models/`; subsequent calls are warm.
 
 ## Deep-Dive Documentation
 

@@ -227,7 +227,16 @@ process.on('unhandledRejection', (reason) => {
   fail((reason as Error)?.message ?? String(reason));
 });
 
-dispatch(process.argv.slice(2))
+// Caption daemon sentinel. Re-exec'd by caption/client.ts. Stays in this
+// file (not commands/) because it should never be daemonized via the
+// main socket daemon and never be daemon-forwarded.
+if (process.argv.includes('--caption-daemon')) {
+  // Lazy import keeps caption code paths out of the cold-start critical
+  // path for normal CLI calls.
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  import('./caption/daemon.js').then((m) => m.runCaptionDaemon());
+} else {
+  dispatch(process.argv.slice(2))
   .then(() => {
     // login holds the auth-browser HTTP server alive on purpose. listen
     // never resolves. Everything else should exit clean so gram.js's
@@ -238,3 +247,4 @@ dispatch(process.argv.slice(2))
   .catch((err) => {
     fail((err as Error).message ?? String(err));
   });
+}

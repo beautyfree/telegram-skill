@@ -22,6 +22,10 @@ import {
   flagStr,
 } from './_shared.js';
 import { resolveFileArg, ensureDownloadsDir } from '../helpers.js';
+import { captionFiles } from '../caption/client.js';
+import { unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { randomBytes } from 'crypto';
 
 const send: Cmd = async (args, flags) => {
   const peer = need(args, 0, 'chat');
@@ -81,4 +85,31 @@ const transcribe: Cmd = async (args, flags) => {
   });
 };
 
-export const media: CmdGroup = { send, download, transcribe };
+/**
+ * `media caption <chat> <msgId>` — local image captioning via Florence-2.
+ *
+ * Downloads the message's image to a temp file, asks the caption daemon
+ * for a single-sentence description, returns `{ messageId, text }`.
+ * Requires the optional peer dep `@huggingface/transformers` — the daemon
+ * surfaces a clean error if missing.
+ */
+const caption: Cmd = async (args, flags) => {
+  const peer = need(args, 0, 'chat');
+  const messageId = Number(need(args, 1, 'messageId'));
+  const maxTokens = flagNum(flags, 'max-tokens');
+  await withClient(flags, async (client) => {
+    const [message] = await client.getMessages(parsePeer(peer), { ids: [messageId] });
+    if (!message || !(message as any).media) fail('No media on that message');
+    const tmpPath = join(tmpdir(), `tg-agent-caption-${randomBytes(8).toString('hex')}.bin`);
+    try {
+      await client.downloadMedia(message as any, { outputFile: tmpPath } as any);
+      const result = await captionFiles([tmpPath], maxTokens);
+      const text = Array.isArray(result) ? result[0]?.text : (result as any).text;
+      print({ messageId, text: text ?? '', model: 'Florence-2-base@q4' });
+    } finally {
+      try { unlinkSync(tmpPath); } catch { /* best-effort */ }
+    }
+  });
+};
+
+export const media: CmdGroup = { send, download, transcribe, caption };
