@@ -1,28 +1,18 @@
 # Channel / group moderation
 
-The CLI MVP covers read-only inspection (`info`, `participants`). Mutating moderation (ban, restrict, promote, demote, kick, invite-link management) is exposed via the MCP server or the raw bridge.
+The CLI covers read-only inspection (`info`, `chats members`) as first-class commands. Mutating moderation (ban, restrict, promote, demote, kick, invite-link management) goes through `telegram-agent invoke` — the raw MTProto escape hatch.
 
 ## Read-only inspection
 
 ```bash
 telegram-agent info @channel
 telegram-agent chats members @channel --limit 200
-telegram-agent chats members @channel --search "spam"   # filter by name
+telegram-agent chats members @channel --query "spam"   # filter by name
 ```
-
-## Mutating ops — via MCP
-
-If you need full moderation, switch the agent to the `mcp-telegram` MCP server and use:
-
-- `ban_user`, `unban_user`, `restrict_user`
-- `promote_admin`, `demote_admin`
-- `invite_user`, `kick_participant`
-- `create_invite_link`, `list_invite_links`, `revoke_invite_link`
-- `set_slow_mode`, `toggle_signatures`, `toggle_join_request`, `toggle_pre_history_hidden`
 
 ## Mutating ops — via raw MTProto
 
-Without switching transport, `telegram-agent invoke` works:
+`telegram-agent invoke <Namespace.Class> --params '{...}'` accepts any gram.js Api method. Entity-like params (`channel`, `user`, `participant`) auto-hydrate from `@username` / numeric / `me`.
 
 ### Ban a user
 

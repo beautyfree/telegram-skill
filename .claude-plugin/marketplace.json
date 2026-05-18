@@ -5,7 +5,7 @@
     "url": "https://github.com/beautyfree"
   },
   "metadata": {
-    "description": "Telegram for Claude Code — read dialogs, search globally, send/edit/react, tag Saved Messages (Premium), moderate channels. Lazy-loaded skill bundle: ~50× lower context cost than an always-on MCP server."
+    "description": "Telegram for Claude Code — read dialogs, search globally, send/edit/react, tag Saved Messages (Premium), moderate channels. Lazy-loaded skill bundle: ~0 context tokens until your prompt mentions Telegram."
   },
   "plugins": [
     {

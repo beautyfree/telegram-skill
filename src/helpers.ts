@@ -169,9 +169,8 @@ export const MESSAGE_FILTER = {
   pinned: () => new Api.InputMessagesFilterPinned(),
 } as const;
 
-// The MCP-side Zod schemas (MessageFilterEnum, ParseMode) are not needed
-// in the CLI path — input is raw command-line strings. Validation
-// happens at the call site against the keys of MESSAGE_FILTER above.
+// Filter validation happens at the call site against the keys of
+// MESSAGE_FILTER above. Inputs are raw command-line strings.
 
 /** Extract a numeric id string from a TL Peer object (PeerUser/PeerChat/PeerChannel). */
 function peerIdString(p: any): string | undefined {

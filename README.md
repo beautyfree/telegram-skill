@@ -5,7 +5,7 @@
   <h1 align="center">telegram-agent</h1>
 </p>
 <p align="center">
-  <b>The universal Telegram agent-skill</b> for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, OpenCode, and 40+ other AI coding agents. Lazy-loaded — <b>~50× lower context cost</b> than an always-on MCP server. Standalone <code>telegram-agent</code> CLI, the universal <a href="https://code.claude.com/docs/en/skills">SKILL.md</a> bundle, one-command install via <code>npx skills</code>.
+  <b>The universal Telegram agent-skill</b> for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, OpenCode, and 40+ other AI coding agents. Lazy-loaded — <b>~0 context tokens</b> until your prompt mentions Telegram. Standalone <code>telegram-agent</code> CLI plus the universal <a href="https://code.claude.com/docs/en/skills">SKILL.md</a> bundle, one-command install via <code>npx skills</code>.
 </p>
 <div align="center">
 
@@ -15,7 +15,7 @@
 
 </div>
 
-Plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto). The agent reads `SKILL.md` only when your prompt mentions Telegram — the rest of the time your context budget is untouched. Standalone: no MCP server in the loop, talks to Telegram directly through gram.js.
+Plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto). The agent reads `SKILL.md` only when your prompt mentions Telegram — the rest of the time your context budget is untouched. Talks to Telegram directly through [gram.js](https://github.com/gram-js/gramjs).
 
 **Use it to:** read dialogs · global message search · send / edit / forward / react · tag Saved Messages with reaction-tags (Premium) · moderate channels · send & download files · call raw MTProto methods. All against your real user account — no bot needed.
 
@@ -24,14 +24,13 @@ Plugs your AI coding agent into a real Telegram user account via [MTProto](https
 
 ## Why this exists
 
-The standard way to give an agent Telegram access is an [MCP server](https://github.com/beautyfree/mcp-telegram) that loads ~12,700 tokens of tool schemas into the model's system prompt on every turn — whether you mention Telegram or not. `telegram-agent` takes the opposite approach: the agent client scans short skill *descriptions* (~50 tokens) and only loads the full instructions if your request matches.
+Most ways to wire an agent into Telegram load tool definitions into the model's context on every turn — costing tokens regardless of whether you ever say "Telegram" in the conversation. `telegram-agent` takes the opposite approach: the agent only sees a short skill *description* (~50 tokens) at boot. The full instructions (~250 tokens) are loaded **only** when your prompt matches — and even then they delegate execution to the `telegram-agent` CLI binary, not in-context tools.
 
-| Transport | When to use | Context cost (idle) | Per-task cost |
-| --- | --- | --- | --- |
-| **MCP server** ([`mcp-telegram`](https://github.com/beautyfree/mcp-telegram)) | Any MCP client; hosted runtimes; ChatGPT Apps SDK | ~12,700 tokens | covered by tool schemas |
-| **Skill bundle** (this package) | Claude Code · Codex CLI · Cursor · Gemini CLI · Cline · Windsurf · OpenCode · 40+ more | **0 tokens** until matched | ~250 tokens active |
+| | Context cost (idle) | Per-task cost |
+| --- | --- | --- |
+| **This package** (skill + CLI) | **0 tokens** until matched | ~250 tokens active |
 
-The two packages share the on-disk session store (`~/.telegram-agent/`) — sign in once, use either or both.
+Supported clients: Claude Code · Codex CLI · Cursor · Gemini CLI · Cline · Windsurf · OpenCode · Continue · Roo · Goose · 40+ more via [`npx skills`](https://github.com/vercel-labs/skills).
 
 ## Prerequisites
 
@@ -50,7 +49,7 @@ That's it. The next time you say "check my Telegram", the agent will:
 
 1. Run `npm i -g telegram-agent` if the binary isn't on `$PATH`.
 2. Ask you once for `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` from [my.telegram.org/apps](https://my.telegram.org/apps) and persist them in your shell rc.
-3. Run `telegram-agent login` — opens a local browser → phone → SMS code → 2FA. Session caches in `~/.telegram-agent/` (shared with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) if you also run the MCP server).
+3. Run `telegram-agent login` — opens a local browser → phone → SMS code → 2FA. Session caches in `~/.telegram-agent/`.
 
 Prefer to do step 1–3 yourself, ahead of time? Run:
 
@@ -128,7 +127,7 @@ In Cursor:
 /add-plugin
 ```
 
-Point it at this repo (`beautyfree/telegram-agent`). The repo already contains a `.cursor-plugin/plugin.json` so Cursor installs it as a native plugin with the skill and the optional MCP server (`mcp.json`) wired in.
+Point it at this repo (`beautyfree/telegram-agent`). The repo already contains a `.cursor-plugin/plugin.json` so Cursor installs it as a native plugin with the skill bundle wired in.
 </details>
 
 <details>
@@ -138,7 +137,7 @@ Point it at this repo (`beautyfree/telegram-agent`). The repo already contains a
 gemini extensions install https://github.com/beautyfree/telegram-agent
 ```
 
-Picks up `gemini-extension.json` from the repo and wires both the skill and the optional MCP server.
+Picks up `gemini-extension.json` from the repo and wires the skill into Gemini CLI.
 </details>
 
 <details>
@@ -164,7 +163,7 @@ Project-scoped — run inside each project where you want Telegram available. Wr
 <details>
 <summary><b>Goose</b></summary>
 
-Goose uses YAML recipes, not skill files. Wire `telegram-agent` (the binary) into a recipe's `extensions:` section if you want it inside a Goose flow. For the MCP path, use [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) directly inside a recipe instead.
+Goose uses YAML recipes, not skill files. Wire `telegram-agent` (the binary) into a recipe's `extensions:` section if you want it inside a Goose flow.
 </details>
 
 ### 3. Use it from any agent
@@ -205,7 +204,7 @@ Run `telegram-agent help` for the full flag reference.
 
 ## How it works
 
-1. **Session** — `telegram-agent login` opens a tiny local browser page for phone → SMS → 2FA, then stores the session at `~/.telegram-agent/`. Shared on-disk with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram).
+1. **Session** — `telegram-agent login` opens a tiny local browser page for phone → SMS → 2FA, then stores the session at `~/.telegram-agent/`.
 
 2. **Skill bundle** — one `SKILL.md` (frontmatter `name` + `description`, ~250 tokens) with the full command list inline, plus narrow lazy-loaded references:
    - `references/installation.md` — install, authentication, daemon storage, troubleshooting
@@ -216,7 +215,7 @@ Run `telegram-agent help` for the full flag reference.
 
    The agent reads `SKILL.md` only when your prompt matches its description. References load on-demand inside that activation.
 
-3. **CLI** — `telegram-agent` is a thin JSON-first wrapper around [gram.js](https://github.com/gram-js/gramjs). No MCP server in the loop.
+3. **CLI** — `telegram-agent` is a thin JSON-first wrapper around [gram.js](https://github.com/gram-js/gramjs). A background daemon (auto-spawned on first use, idle-exits after 10 min) keeps the MTProto WebSocket warm so subsequent commands take ~200 ms instead of ~2 s.
 
 4. **Distribution** — the repo follows the [universal SKILL.md layout](https://code.claude.com/docs/en/skills): `skills/telegram/SKILL.md` plus per-client marketplace manifests (`.claude-plugin/marketplace.json`, `.claude-plugin/plugin.json`, `.cursor-plugin/plugin.json`, `gemini-extension.json`). That's what makes both `npx skills add beautyfree/telegram-agent` and the agent-native commands work out of the box.
 
@@ -239,8 +238,8 @@ Run `telegram-agent help` for the full flag reference.
 | --- | --- | --- | --- |
 | `TELEGRAM_API_ID` | yes | — | From my.telegram.org/apps. Prompted on first login if unset. |
 | `TELEGRAM_API_HASH` | yes | — | Same as above. |
-| `TELEGRAM_AGENT_HOME` | no | `~/.telegram-agent` | State + session storage. Legacy `MCP_TELEGRAM_HOME` accepted. If `~/.mcp-telegram/` exists from a previous install, it's used automatically. |
-| `TELEGRAM_AGENT_DOWNLOADS` | no | `$TELEGRAM_AGENT_HOME/downloads` | Where `download` saves files. Legacy `MCP_TELEGRAM_DOWNLOADS` accepted. |
+| `TELEGRAM_AGENT_HOME` | no | `~/.telegram-agent` | State + session storage. |
+| `TELEGRAM_AGENT_DOWNLOADS` | no | `$TELEGRAM_AGENT_HOME/downloads` | Where `media download` saves files. |
 | `LOG_LEVEL` | no | `info` | Set to `debug` for verbose stderr. |
 
 ## FAQ
@@ -258,17 +257,13 @@ User account. This is the MTProto API, not the Bot API. The agent acts as you. T
 The session lives in `~/.telegram-agent/` on your machine. No third-party server. The CLI talks directly to Telegram's MTProto.
 
 **What about real-time push notifications?**
-The skill/CLI path is request-response. For long-poll / streaming, run [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) as the MCP server alongside — both share the same session store.
+Use `telegram-agent listen <chat>` — subscribes to gram.js's `NewMessage` event and writes one JSON line per new message to stdout. Pipe it into `while read line; do …; done` for a tail-style loop.
 
 **Does it work with a Telegram Bot API token?**
 No — this uses MTProto. For Bot API, you want a different package.
 
-**Does `mcp-telegram` still work?**
-Yes, unchanged. The two packages are independent and complementary. Use whichever transport fits your client, or both.
-
 ## Related
 
-- [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) — the underlying MCP server, for clients that only speak MCP.
 - [`npx skills`](https://github.com/vercel-labs/skills) — universal SKILL.md installer (54+ agents).
 - [Anthropic Skills docs](https://code.claude.com/docs/en/skills) — the universal SKILL.md format spec.
 - [Codex Agent Skills](https://developers.openai.com/codex/skills) — OpenAI's adoption of the same format.

@@ -375,6 +375,3 @@ Read these only when the task matches — keep context light.
 | [references/playbooks/moderation.md](references/playbooks/moderation.md) | Bans, restrictions, admin-rights bitmasks |
 | [references/playbooks/outreach.md](references/playbooks/outreach.md) | Careful cold/warm DM campaigns with caps + cooldowns |
 
-## When to fall back to MCP
-
-For agent runtimes without a shell (web Apps SDK, some hosted environments), install [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) as the MCP server. Both packages share the same `~/.telegram-agent/` session store — log in once, use either or both.

@@ -47,7 +47,7 @@ export TELEGRAM_API_ID=123456
 export TELEGRAM_API_HASH=abcdef0123456789abcdef0123456789
 ```
 
-`telegram-agent login` opens a local browser tab → phone number → SMS/Telegram code → 2FA password if enabled. The session token is cached under `~/.telegram-agent/` and shared with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) if you also run the MCP server.
+`telegram-agent login` opens a local browser tab → phone number → SMS/Telegram code → 2FA password if enabled. The session token is cached under `~/.telegram-agent/`.
 
 ```bash
 telegram-agent me           # Verify connection works
@@ -98,7 +98,7 @@ Every command accepts `--account <id>` to pick which account it runs against.
 
 Override the base directory with `TELEGRAM_AGENT_HOME=/some/path`. Override the downloads destination with `TELEGRAM_AGENT_DOWNLOADS=/some/path`.
 
-Legacy `~/.mcp-telegram/` is still read as a fallback when `~/.telegram-agent/` doesn't exist — so existing `mcp-telegram` users don't need to re-login.
+Back-compat: if `~/.telegram-agent/` doesn't exist but a legacy `~/.mcp-telegram/` does, it's used automatically — migrating users don't need to re-authenticate.
 
 ## Troubleshooting
 
