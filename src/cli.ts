@@ -16,7 +16,7 @@ import { logger } from './logger.js';
 import { TelegramAuthError } from './telegram.js';
 import { commandTable } from './commands/index.js';
 import type { Cmd, ParsedArgs } from './commands/_shared.js';
-import { fail, print } from './commands/_shared.js';
+import { fail, print, classifyError } from './commands/_shared.js';
 import { sendToDaemon } from './daemon/client.js';
 import { isDaemonRunning } from './daemon/socket.js';
 
@@ -187,7 +187,7 @@ async function dispatch(argv: string[]): Promise<void> {
   }
 
   const resolved = resolve(argv);
-  if (!resolved) fail(`Unknown command: ${argv.join(' ') || '(none)'}. Run \`telegram-agent --help\`.`);
+  if (!resolved) fail(`Unknown command: ${argv.join(' ') || '(none)'}. Run \`telegram-agent --help\`.`, 'INVALID_ARGS');
 
   const rest = argv.slice(resolved.consumed);
   const parsed = parseArgs(rest);
@@ -212,9 +212,9 @@ async function dispatch(argv: string[]): Promise<void> {
     await resolved.fn(parsed.positional, parsed.flags);
   } catch (err) {
     if (err instanceof TelegramAuthError) {
-      fail(`Session expired for ${err.accountId}. Run \`telegram-agent login\` to re-authorize.`);
+      fail(`Session expired for ${err.accountId}. Run \`telegram-agent login\` to re-authorize.`, 'PERMISSION');
     }
-    fail((err as Error).message ?? String(err));
+    fail((err as Error).message ?? String(err), classifyError(err));
   }
 }
 

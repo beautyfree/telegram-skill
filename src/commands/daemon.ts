@@ -6,13 +6,13 @@
  *   daemon stop    — terminate the running daemon
  *   daemon status  — JSON: { running, pid?, socket, idleAfter }
  */
-import { existsSync, readFileSync, unlinkSync } from 'fs';
+import { existsSync, readFileSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs';
 import { join, dirname } from 'path';
 
 import type { Cmd, CmdGroup } from './_shared.js';
-import { print, ok, fail } from './_shared.js';
+import { print, ok, fail, flagNum, flagBool } from './_shared.js';
 import { daemonSocketPath, isDaemonRunning } from '../daemon/socket.js';
-import { spawnDaemonIfNeeded } from '../daemon/spawn.js';
+import { spawnDaemonIfNeeded, daemonLogPath } from '../daemon/spawn.js';
 import { DAEMON_IDLE_MS } from '../daemon/protocol.js';
 
 const pidFilePath = (): string => join(dirname(daemonSocketPath()), 'daemon.pid');
@@ -62,4 +62,38 @@ const status: Cmd = async () => {
   });
 };
 
-export const daemon: CmdGroup = { start, stop, status };
+/**
+ * `daemon log [--lines N] [--json]` — tail the daemon's stderr log.
+ *
+ * Default: last 200 lines as plain text on stdout.
+ * `--json`: emit a single JSON object `{ path, lines: [...] }` for
+ *           machine consumption.
+ */
+const log: Cmd = async (_, flags) => {
+  const path = daemonLogPath();
+  if (!existsSync(path)) {
+    if (flagBool(flags, 'json')) {
+      print({ ok: true, path, lines: [] });
+    } else {
+      process.stderr.write(`(no log file yet at ${path})\n`);
+    }
+    return;
+  }
+  const lines = flagNum(flags, 'lines') ?? 200;
+  const stat = statSync(path);
+  const READ_MAX = 1024 * 1024; // 1 MB
+  const offset = Math.max(0, stat.size - READ_MAX);
+  const fd = openSync(path, 'r');
+  const buf = Buffer.alloc(stat.size - offset);
+  readSync(fd, buf, 0, buf.length, offset);
+  closeSync(fd);
+  const all = buf.toString('utf-8').split('\n');
+  const tail = all.slice(-1 - lines).filter((s) => s.length > 0);
+  if (flagBool(flags, 'json')) {
+    print({ ok: true, path, lines: tail });
+  } else {
+    for (const l of tail) process.stdout.write(l + '\n');
+  }
+};
+
+export const daemon: CmdGroup = { start, stop, status, log };

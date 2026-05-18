@@ -77,15 +77,44 @@ export function ok(extra?: Record<string, any>): void {
   print({ ok: true, ...(extra ?? {}) });
 }
 
-export function fail(message: string, code = 1): never {
-  process.stderr.write(JSON.stringify({ ok: false, error: message }) + '\n');
-  process.exit(code);
+/**
+ * Machine-readable error category. Mirrors avemeva/agent-telegram so
+ * agents can branch on `.code` instead of regex-ing message strings.
+ *
+ * - INVALID_ARGS: bad command, missing/invalid arguments, bad flags
+ * - NOT_FOUND:    entity / message / file not found, peer doesn't exist
+ * - FLOOD_WAIT:   rate-limited (long wait)
+ * - PERMISSION:   action denied — not admin, banned, no rights
+ * - PREMIUM:      Telegram Premium required for this feature
+ * - UNKNOWN:      anything else — surface the raw error message
+ */
+export type ErrorCode = 'INVALID_ARGS' | 'NOT_FOUND' | 'FLOOD_WAIT' | 'PERMISSION' | 'PREMIUM' | 'UNKNOWN';
+
+export function fail(message: string, code: ErrorCode | number = 'UNKNOWN', exitCode = 1): never {
+  // Back-compat: second arg used to be an exit code (number). Keep working.
+  const errorCode: ErrorCode = typeof code === 'string' ? code : 'UNKNOWN';
+  process.stderr.write(JSON.stringify({ ok: false, error: message, code: errorCode }) + '\n');
+  process.exit(typeof code === 'number' ? code : exitCode);
+}
+
+/**
+ * Classify a raw gram.js / MTProto error into an ErrorCode.
+ * Use at every `catch (err)` boundary so the exit shape stays
+ * predictable. Pattern lifted from avemeva.
+ */
+export function classifyError(err: unknown): ErrorCode {
+  const msg = (err as Error)?.message ?? String(err);
+  if (/FLOOD_WAIT/i.test(msg)) return 'FLOOD_WAIT';
+  if (/PEER_ID_INVALID|USERNAME_NOT_OCCUPIED|MSG_ID_INVALID|CHANNEL_INVALID|USER_NOT_PARTICIPANT/i.test(msg)) return 'NOT_FOUND';
+  if (/PREMIUM/i.test(msg)) return 'PREMIUM';
+  if (/CHAT_ADMIN_REQUIRED|CHAT_WRITE_FORBIDDEN|USER_PRIVACY_RESTRICTED|BANNED_RIGHTS|RIGHT_FORBIDDEN/i.test(msg)) return 'PERMISSION';
+  return 'UNKNOWN';
 }
 
 // ─── arg helpers ─────────────────────────────────────────────────────
 
 export function need(args: string[], i: number, name: string): string {
-  if (args[i] === undefined) fail(`Missing argument: <${name}>`);
+  if (args[i] === undefined) fail(`Missing argument: <${name}>`, 'INVALID_ARGS');
   return args[i];
 }
 
@@ -144,7 +173,7 @@ export async function readMessageBody(positional: string | undefined, flags: Fla
     try {
       return readFileSync(filePath, 'utf8');
     } catch (err) {
-      fail(`Failed to read --file ${filePath}: ${(err as Error).message}`);
+      fail(`Failed to read --file ${filePath}: ${(err as Error).message}`, 'NOT_FOUND');
     }
   }
   if (flagBool(flags, 'stdin')) {
@@ -155,5 +184,5 @@ export async function readMessageBody(positional: string | undefined, flags: Fla
     });
   }
   if (positional !== undefined) return positional;
-  fail('No message body. Pass it as a positional argument, --stdin, or --file <path>.');
+  fail('No message body. Pass it as a positional argument, --stdin, or --file <path>.', 'INVALID_ARGS');
 }

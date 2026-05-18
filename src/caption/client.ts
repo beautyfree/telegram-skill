@@ -134,3 +134,57 @@ export async function captionFiles(
 export function isCaptionDaemonRunning(): boolean {
   return readCaptionPid() !== null;
 }
+
+/**
+ * Pre-fetch the Florence-2-base model weights without running a caption.
+ * Useful in CI / Docker / first-time setup — pays the ~150 MB download
+ * cost upfront so the first real `media caption` call doesn't block.
+ *
+ * Streams `@huggingface/transformers` progress to stderr, returns
+ * `{ ok, dir }` on stdout when done. Errors when the optional peer dep
+ * is missing.
+ */
+export async function downloadCaptionModel(): Promise<{ ok: true; dir: string }> {
+  const { captionPaths, MODEL_ID, MODEL_DTYPE } = await import('./paths.js');
+  const { modelsDir } = captionPaths();
+
+  let mod: any;
+  try {
+    const specifier = '@hug' + 'gingface/transformers';
+    mod = await import(specifier);
+  } catch {
+    throw new Error(
+      'caption-model download requires @huggingface/transformers — install with `npm i -g @huggingface/transformers`',
+    );
+  }
+
+  const { Florence2ForConditionalGeneration, AutoProcessor } = mod;
+
+  // Stream progress lines to stderr — keeps stdout clean for the
+  // eventual `{ ok }` payload.
+  function progressCallback(info: any): void {
+    if (info?.status === 'progress' && info?.file && info?.progress != null) {
+      const pct = Math.round(info.progress);
+      const loaded = info.loaded ? `${(info.loaded / 1e6).toFixed(1)}` : '?';
+      const total = info.total ? `${(info.total / 1e6).toFixed(1)}` : '?';
+      const name = String(info.file).split('/').pop();
+      process.stderr.write(`\r[download] ${name}: ${pct}% (${loaded}/${total} MB)`);
+    } else if (info?.status === 'done' && info?.file) {
+      process.stderr.write(`\n[done] ${info.file}\n`);
+    }
+  }
+
+  await AutoProcessor.from_pretrained(MODEL_ID, {
+    cache_dir: modelsDir,
+    progress_callback: progressCallback,
+  });
+  await Florence2ForConditionalGeneration.from_pretrained(MODEL_ID, {
+    cache_dir: modelsDir,
+    dtype: MODEL_DTYPE,
+    device: 'cpu', // download only — actual runtime picks WebGPU
+    progress_callback: progressCallback,
+  });
+
+  process.stderr.write('\n');
+  return { ok: true, dir: modelsDir };
+}

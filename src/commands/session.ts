@@ -18,7 +18,7 @@ import { TelegramClient, Api } from 'telegram';
 import { StringSession } from 'telegram/sessions/index.js';
 
 import type { Cmd } from './_shared.js';
-import { fail, need, print, flagStr, flagBool } from './_shared.js';
+import { fail, need, print, flagStr, flagBool, classifyError } from './_shared.js';
 import { FileSession } from '../session.js';
 import { sessionsDir, getAccount, upsertAccount, listAccounts } from '../state.js';
 import { credentialsStatus } from '../telegram.js';
@@ -29,12 +29,12 @@ function apiCreds(): { apiId: number; apiHash: string } {
   if (envId && envHash) return { apiId: parseInt(envId, 10), apiHash: envHash };
   const status = credentialsStatus();
   if (status.source === 'missing') {
-    fail('Telegram API credentials are not configured. Set TELEGRAM_API_ID + TELEGRAM_API_HASH.');
+    fail('Telegram API credentials are not configured. Set TELEGRAM_API_ID + TELEGRAM_API_HASH.', 'INVALID_ARGS');
   }
   // credentialsStatus reads stored creds — re-fetch by importing the
   // function that returns them. Cheaper: just bail and ask the caller
   // to set env vars before importing, which is the common case.
-  fail('Set TELEGRAM_API_ID + TELEGRAM_API_HASH in the environment before importing a session.');
+  fail('Set TELEGRAM_API_ID + TELEGRAM_API_HASH in the environment before importing a session.', 'INVALID_ARGS');
 }
 
 async function readStdin(): Promise<string> {
@@ -50,7 +50,7 @@ const exportCmd: Cmd = async (args) => {
   const account = getAccount(id);
   if (!account) {
     const known = listAccounts().map((a) => a.id).join(', ') || '(none)';
-    fail(`Unknown account ${id}. Known: ${known}`);
+    fail(`Unknown account ${id}. Known: ${known}`, 'NOT_FOUND');
   }
 
   const dir = join(sessionsDir, id);
@@ -58,7 +58,7 @@ const exportCmd: Cmd = async (args) => {
   await file.load();
 
   if (!file.dcId || !file.serverAddress || !file.port || !file.authKey) {
-    fail(`Session for ${id} is incomplete on disk. Run \`telegram-agent login\` to re-authorize.`);
+    fail(`Session for ${id} is incomplete on disk. Run \`telegram-agent login\` to re-authorize.`, 'NOT_FOUND');
   }
 
   // StringSession inherits MemorySession's public setters — we don't have to
@@ -75,7 +75,7 @@ const exportCmd: Cmd = async (args) => {
 const importCmd: Cmd = async (args, flags) => {
   const raw = flagStr(flags, 'string') ?? (flagBool(flags, 'stdin') ? await readStdin() : undefined);
   if (!raw) {
-    fail('No session string. Pass it via --string "<blob>" or --stdin.');
+    fail('No session string. Pass it via --string "<blob>" or --stdin.', 'INVALID_ARGS');
   }
 
   const { apiId, apiHash } = apiCreds();
@@ -94,14 +94,14 @@ const importCmd: Cmd = async (args, flags) => {
     me = await probe.getMe();
   } catch (err) {
     await probe.disconnect();
-    fail(`Imported session failed Telegram auth: ${(err as Error).message}`);
+    fail(`Imported session failed Telegram auth: ${(err as Error).message}`, classifyError(err));
   }
   await probe.disconnect();
 
   const accountId = (me as any)?.id?.toString();
   const phone = (me as any)?.phone ?? 'unknown';
   const username = (me as any)?.username as string | undefined;
-  if (!accountId) fail('Could not determine account id from imported session.');
+  if (!accountId) fail('Could not determine account id from imported session.', 'NOT_FOUND');
 
   // Persist the session to its permanent FileSession dir under the
   // canonical account id.

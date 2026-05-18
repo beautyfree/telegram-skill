@@ -25,6 +25,8 @@ describe('commandTable', () => {
     expect(typeof get(commandTable, ['media', 'download'])).toBe('function');
     expect(typeof get(commandTable, ['media', 'transcribe'])).toBe('function');
     expect(typeof get(commandTable, ['media', 'caption'])).toBe('function');
+    expect(typeof get(commandTable, ['media', 'caption-download'])).toBe('function');
+    expect(typeof get(commandTable, ['daemon', 'log'])).toBe('function');
     expect(typeof get(commandTable, ['saved', 'tags'])).toBe('function');
     expect(typeof get(commandTable, ['session', 'export'])).toBe('function');
     expect(typeof get(commandTable, ['session', 'import'])).toBe('function');

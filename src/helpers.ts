@@ -179,6 +179,10 @@ function peerIdString(p: any): string | undefined {
 }
 
 export function serializeMessage(m: any) {
+  // `m.from` / `m.peer` are attached by enrich/names.ts when name
+  // resolution has been run. We pass them through verbatim so the
+  // caller sees `from: { id, type, name, username? }` next to the
+  // raw ids.
   return {
     id: m.id,
     date: m.date,
@@ -186,8 +190,11 @@ export function serializeMessage(m: any) {
     out: m.out,
     fromId: peerIdString(m.fromId),
     peerId: peerIdString(m.peerId),
+    from: m.from ?? undefined,
+    peer: m.peer ?? undefined,
     replyTo: m.replyTo?.replyToMsgId,
     mediaType: m.media?.className,
+    downloadPath: m.downloadPath ?? undefined,
     views: m.views,
     forwards: m.forwards,
   };

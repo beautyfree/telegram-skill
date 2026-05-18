@@ -102,12 +102,18 @@ telegram-agent action react <chat> <msgId> --custom-emoji-ids id,id   # Custom e
 telegram-agent action mark-read <chat> [--max-id N]               # Mark chat as read
 telegram-agent action click <chat> <msgId> <button>               # Click inline keyboard (1-based index or exact label)
 
-# Real-time
-telegram-agent listen <chat>                            # Stream new messages from one chat (NDJSON)
-telegram-agent listen --chat @a,@b,@c                   # Multi-chat (comma-separated)
-telegram-agent listen --type user|bot|group|channel     # Subscribe to all dialogs of that type
+# Real-time (NDJSON, one JSON object per line)
+telegram-agent listen <chat>                            # Single chat
+telegram-agent listen --chat @a,@b,@c                   # Multi-chat
+telegram-agent listen --type user|bot|group|channel     # All dialogs of that type
+telegram-agent listen --exclude-chat @a,@b              # Subtract from the include set
+telegram-agent listen --exclude-type bot                # Drop a whole category
+telegram-agent listen --incoming                        # Drop self-sent echoes (out===false only)
+telegram-agent listen --event new_message,edit_message,delete_messages,message_reactions,read_outbox,user_typing,user_status,callback_query,album
+                                                        # Default: new_message,edit_message,delete_messages,message_reactions
 telegram-agent listen <chat> --filter photos            # Restrict to media filter
 telegram-agent listen <chat> --since N                  # Replay from unix timestamp
+telegram-agent listen <chat> --auto-download            # Inline small media + lift size cap for the streamed messages
 
 # Media
 telegram-agent media send <chat> <path-or-url> [more...] [--caption X]   # Send file(s) — multiple = album (max 10)
@@ -119,6 +125,7 @@ telegram-agent media download <chat> <msgId> --out /tmp/file.jpg         # Overr
 telegram-agent media transcribe <chat> <msgId>                           # Server-side transcribe voice/round-video note (Premium)
 telegram-agent media caption <chat> <msgId>                              # Local image caption via Florence-2 (needs @huggingface/transformers)
 telegram-agent media caption <chat> <msgId> --max-tokens 80              # Longer caption
+telegram-agent media caption-download                                    # Pre-fetch Florence-2 weights (~150 MB) without running a caption
 
 # Saved Messages — reaction-tags (Premium)
 telegram-agent saved tags                                                # List your tag reactions + titles
@@ -151,6 +158,7 @@ echo "<blob>" | telegram-agent session import --stdin
 telegram-agent daemon start                          # Spawn background daemon
 telegram-agent daemon stop                           # SIGTERM the daemon
 telegram-agent daemon status                         # { running, pid, socket, idleTimeoutMs }
+telegram-agent daemon log [--lines N] [--json]       # Tail the daemon's stderr log
 
 # Auth
 telegram-agent login                                 # Interactive login (browser tab)
@@ -308,9 +316,33 @@ The following actions require explicit user confirmation before execution:
 - `logout`
 - Any `invoke` of destructive MTProto methods (`channels.DeleteMessages`, `messages.DeleteHistory`, `channels.KickFromChannel`, etc.)
 
+## Message shape
+
+`msg list`, `msg get`, `msg search`, `listen new_message`, `listen edit_message`, `listen album` all emit messages in the **flat enriched** shape:
+
+```json
+{
+  "id": 12345,
+  "date": 1716090123,
+  "dateRel": "14:32",                          // smart relative — today HH:MM, "Yesterday HH:MM", "Mon HH:MM", "Mar 1 HH:MM", or "YYYY-MM-DD"
+  "from": { "id": "111", "type": "user", "name": "Boris", "username": "boris" },
+  "peer": { "id": "222", "type": "user", "name": "Alice" },
+  "text": "...",
+  "out": true,                                 // present only when sent by you
+  "replyTo": 12344,                            // present only when message is a reply
+  "albumId": "1234567890",                     // present only when grouped
+  "downloadPath": "~/.telegram-agent/downloads/...",   // small media auto-fetched (≤1MB) or --auto-download lifts cap
+  "mediaType": "MessageMediaPhoto",
+  "views": 42,
+  "transcription": { "text": "..." }           // present with --auto-transcribe + Premium
+}
+```
+
+Keys with empty values are dropped. Sender / peer ids are resolved to human names via a per-process cache.
+
 ## Response shape
 
-Every list / search / get response is an envelope:
+Every list / search response is an envelope:
 
 ```json
 { "items": [...], "hasMore": true, "nextOffset": <cursor> }
@@ -341,16 +373,18 @@ Supported HTML tags: `<b>`, `<i>`, `<code>`, `<pre>`, `<a href="...">`, `<s>`, `
 
 ## Error Handling
 
-Errors print to stderr as `{"ok": false, "error": "..."}` with exit code 1. Common buckets:
+Errors print to stderr as `{"ok": false, "error": "...", "code": "<CATEGORY>"}` with exit code 1. The `code` field is one of:
 
-| Pattern | Meaning | Action |
-|---------|---------|--------|
-| `Unknown command: ...` | Bad noun/verb or typo | Fix the command |
-| `Session expired for <id>` | Auth token revoked | Run `telegram-agent login` |
-| `creds: false` (from doctor) | Missing `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` | Export them; see [installation.md](references/installation.md) |
-| `FLOOD_WAIT_X` | Rate limited X seconds | Wait and retry |
-| `PEER_ID_INVALID` / `USERNAME_NOT_OCCUPIED` | Bad entity reference | Verify with `telegram-agent info <peer>` |
-| `CHAT_ADMIN_REQUIRED` / `CHAT_WRITE_FORBIDDEN` | Permission denied | You need higher rights in the chat |
+| Code | Meaning | Action |
+|------|---------|--------|
+| `INVALID_ARGS` | Bad command, missing/invalid arguments, bad flags | Fix the command |
+| `NOT_FOUND` | Entity / message / file not found | Verify with `telegram-agent info <peer>`; check IDs |
+| `FLOOD_WAIT` | Telegram rate-limited the account (long wait) | Wait the indicated seconds and retry |
+| `PERMISSION` | Action denied — not admin / banned / no rights / session expired | Re-run after `telegram-agent login` or with sufficient permissions |
+| `PREMIUM` | Feature requires Telegram Premium | Upgrade the signed-in account |
+| `UNKNOWN` | Anything else — raw error in `error` field | Inspect the message |
+
+The category lets agents branch with `jq -r '.code'` instead of regex-ing the human-readable string.
 
 ## Important Constraints
 

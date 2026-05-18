@@ -57,7 +57,7 @@ export const invoke: Cmd = async (args, flags) => {
   try {
     params = JSON.parse(raw);
   } catch (err) {
-    fail(`Invalid --params JSON: ${(err as Error).message}`);
+    fail(`Invalid --params JSON: ${(err as Error).message}`, 'INVALID_ARGS');
   }
 
   if (isDestructive(className) && !flagBool(flags, 'confirm')) {
@@ -65,7 +65,8 @@ export const invoke: Cmd = async (args, flags) => {
       `${className} matches a destructive MTProto pattern (delete/kick/ban/promote/etc.). ` +
       `Re-run with --confirm if you really mean it. ` +
       `This guard exists because untrusted message content can reach the agent loop — ` +
-      `the confirm flag forces an out-of-band intent signal from you.`
+      `the confirm flag forces an out-of-band intent signal from you.`,
+      'PERMISSION',
     );
   }
 

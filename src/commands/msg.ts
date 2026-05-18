@@ -26,7 +26,9 @@ import {
   flagNum,
   flagStr,
 } from './_shared.js';
-import { ensureDownloadsDir } from '../helpers.js';
+import { addSenderNames } from '../enrich/names.js';
+import { autoDownloadSmall, autoDownloadAll } from '../enrich/download.js';
+import { flattenMessages, flattenMessage } from '../enrich/flatten.js';
 
 const TRUNCATE_DEFAULT = 500;
 
@@ -56,32 +58,15 @@ function applyTruncate(msgs: any[], full: boolean): any[] {
   });
 }
 
-/** Download photo/voice/sticker media inline. Skips other types. */
-async function autoDownload(client: any, raw: any[], accountId: string): Promise<Record<number, string>> {
-  const dir = ensureDownloadsDir();
-  const out: Record<number, string> = {};
-  for (const m of raw) {
-    if (!m.media) continue;
-    const cls = m.media.className;
-    const auto =
-      cls === 'MessageMediaPhoto' ||
-      cls === 'MessageMediaDocument' ||
-      (m.voice ?? m.sticker);
-    if (!auto) continue;
-    const path = join(dir, `${accountId}_${m.id}`);
-    try {
-      const result = await client.downloadMedia(m, { outputFile: path });
-      out[m.id] = typeof result === 'string' ? result : path;
-    } catch {
-      /* swallow — agent gets a hint via the absence of the path */
-    }
-  }
-  return out;
-}
 
-/** Request server-side transcription for voice / round-video notes. Premium. */
-async function autoTranscribe(client: any, raw: any[]): Promise<Record<number, { text?: string; pending?: boolean }>> {
-  const out: Record<number, any> = {};
+/**
+ * Request server-side transcription for voice / round-video notes.
+ * Mutates each eligible message in place: attaches
+ * `m.transcription = { text?, pending?, error? }`. Premium-only;
+ * non-Premium accounts get a clean { error } per message rather than
+ * a hard failure.
+ */
+async function autoTranscribe(client: any, raw: any[]): Promise<void> {
   for (const m of raw) {
     const isVoice = m.voice || m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeAudio' && a.voice);
     const isRound = m.videoNote || m.media?.document?.attributes?.some?.((a: any) => a.className === 'DocumentAttributeVideo' && a.roundMessage);
@@ -89,12 +74,11 @@ async function autoTranscribe(client: any, raw: any[]): Promise<Record<number, {
     try {
       const inputPeer = await client.getInputEntity(m.peerId);
       const r: any = await client.invoke(new Api.messages.TranscribeAudio({ peer: inputPeer, msgId: m.id }));
-      out[m.id] = { text: r.text, pending: r.pending };
+      m.transcription = { text: r.text, pending: r.pending };
     } catch (err) {
-      out[m.id] = { error: (err as Error).message };
+      m.transcription = { error: (err as Error).message };
     }
   }
-  return out;
 }
 
 const list: Cmd = async (args, flags) => {
@@ -120,21 +104,12 @@ const list: Cmd = async (args, flags) => {
 
     const raw = await client.getMessages(parsePeer(peer), opts);
     const filtered = since ? raw.filter((m: any) => (m.date ?? 0) >= since) : raw;
-    let enriched: any[] = filtered.map(serializeMessage);
-
-    const downloads = flagBool(flags, 'auto-download')
-      ? await autoDownload(client, filtered, accountId)
-      : null;
-    const transcripts = flagBool(flags, 'auto-transcribe')
-      ? await autoTranscribe(client, filtered)
-      : null;
-    if (downloads || transcripts) {
-      enriched = enriched.map((m) => ({
-        ...m,
-        ...(downloads && downloads[m.id] ? { downloadPath: downloads[m.id] } : {}),
-        ...(transcripts && transcripts[m.id] ? { transcription: transcripts[m.id] } : {}),
-      }));
-    }
+    // Enrichment pipeline mirrors avemeva: download tiny media → names → transcribe → flatten.
+    await autoDownloadSmall(client, filtered, accountId);
+    if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, filtered, accountId);
+    await addSenderNames(client, filtered);
+    if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, filtered);
+    const enriched = flattenMessages(filtered);
     const truncated = applyTruncate(enriched, flagBool(flags, 'full') ?? false);
     const wantLimit = flagNum(flags, 'limit') ?? 50;
     // `msg list` paginates by feeding the oldest message id back as
@@ -150,9 +125,13 @@ const get: Cmd = async (args, flags) => {
   const peer = need(args, 0, 'chat');
   const ids = collectIds(args.slice(1));
   if (ids.length === 0) need(args, 1, 'messageId');
-  await withClient(flags, async (client) => {
+  await withClient(flags, async (client, accountId) => {
     const msgs = await client.getMessages(parsePeer(peer), { ids });
-    const items = applyTruncate(msgs.map(serializeMessage), flagBool(flags, 'full') ?? false);
+    await autoDownloadSmall(client, msgs, accountId);
+    if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, msgs, accountId);
+    await addSenderNames(client, msgs);
+    if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, msgs);
+    const items = applyTruncate(flattenMessages(msgs), flagBool(flags, 'full') ?? false);
     // `msg get` is single-shot — no pagination, but we keep the envelope
     // shape so every list/search/get response is the same shape.
     print(pageOf(items, false, null));
@@ -185,6 +164,7 @@ const search: Cmd = async (args, flags) => {
       const from = flagStr(flags, 'from');
       if (from) opts.fromUser = parsePeer(from);
       rawHits = await client.getMessages(parsePeer(chat), opts);
+      await addSenderNames(client, rawHits);
     } else {
       const result: any = await client.invoke(
         new Api.messages.SearchGlobal({
@@ -201,42 +181,53 @@ const search: Cmd = async (args, flags) => {
       rawHits = result.messages ?? [];
       for (const c of result.chats ?? []) chats.set(c.id?.toString(), c);
       for (const u of result.users ?? []) chats.set(u.id?.toString(), u);
+      await addSenderNames(client, rawHits);
     }
 
-    const downloads = flagBool(flags, 'auto-download')
-      ? await autoDownload(client, rawHits, accountId)
-      : null;
-    const transcripts = flagBool(flags, 'auto-transcribe')
-      ? await autoTranscribe(client, rawHits)
-      : null;
+    await autoDownloadSmall(client, rawHits, accountId);
+    if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, rawHits, accountId);
+    if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, rawHits);
     const context = flagNum(flags, 'context') ?? 0;
 
-    function peerOf(m: any) {
+    function peerOf(m: any): any {
       const id =
         m.peerId?.userId?.toString?.() ??
         m.peerId?.chatId?.toString?.() ??
         m.peerId?.channelId?.toString?.();
-      const peer = id ? chats.get(id) : undefined;
-      return serializeEntity(peer);
+      const raw = id ? chats.get(id) : undefined;
+      if (!raw) return undefined;
+      const type: 'user' | 'chat' | 'channel' = m.peerId?.userId
+        ? 'user'
+        : m.peerId?.chatId
+          ? 'chat'
+          : 'channel';
+      return {
+        id,
+        type,
+        name: raw.title ?? [raw.firstName, raw.lastName].filter(Boolean).join(' ') ?? undefined,
+        username: raw.username ?? undefined,
+      };
     }
 
     const payload: any[] = [];
     for (const m of rawHits) {
-      const hit = {
-        ...serializeMessage(m),
-        peer: peerOf(m),
-        ...(downloads && downloads[m.id] ? { downloadPath: downloads[m.id] } : {}),
-        ...(transcripts && transcripts[m.id] ? { transcription: transcripts[m.id] } : {}),
-      };
+      // For global search, attach `peer` from the inline chat map if
+      // names enrichment didn't already do it.
+      if (!m.peer) {
+        const fallbackPeer = peerOf(m);
+        if (fallbackPeer) m.peer = fallbackPeer;
+      }
+      const hit = flattenMessage(m);
       if (context > 0) {
         try {
           const surround = await client.getMessages(m.peerId, {
             offsetId: m.id + context + 1,
             limit: context * 2 + 1,
           });
+          await addSenderNames(client, surround);
           payload.push({
             hit,
-            context: surround.map(serializeMessage),
+            context: flattenMessages(surround),
           });
         } catch {
           payload.push({ hit, context: [] });

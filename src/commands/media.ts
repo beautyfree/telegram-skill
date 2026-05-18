@@ -22,7 +22,7 @@ import {
   flagStr,
 } from './_shared.js';
 import { resolveFileArg, ensureDownloadsDir } from '../helpers.js';
-import { captionFiles } from '../caption/client.js';
+import { captionFiles, downloadCaptionModel } from '../caption/client.js';
 import { unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
@@ -30,7 +30,7 @@ import { randomBytes } from 'crypto';
 const send: Cmd = async (args, flags) => {
   const peer = need(args, 0, 'chat');
   const paths = args.slice(1);
-  if (paths.length === 0) fail('Provide at least one file path or URL');
+  if (paths.length === 0) fail('Provide at least one file path or URL', 'INVALID_ARGS');
   await withClient(flags, async (client) => {
     const resolved = await Promise.all(paths.map((p) => resolveFileArg(p)));
     const file = resolved.length === 1 ? resolved[0] : resolved;
@@ -51,7 +51,7 @@ const download: Cmd = async (args, flags) => {
   const messageId = Number(need(args, 1, 'messageId'));
   await withClient(flags, async (client, accountId) => {
     const [message] = await client.getMessages(parsePeer(peer), { ids: [messageId] });
-    if (!message || !(message as any).media) fail('No media on that message');
+    if (!message || !(message as any).media) fail('No media on that message', 'NOT_FOUND');
     const explicit = flagStr(flags, 'out');
     const outPath = explicit ?? join(ensureDownloadsDir(), `${accountId}_${messageId}`);
     const result = await client.downloadMedia(message as any, { outputFile: outPath } as any);
@@ -78,7 +78,7 @@ const transcribe: Cmd = async (args, flags) => {
       const msg = (err as Error).message;
       // Most common failure: caller isn't Premium.
       if (/PREMIUM/i.test(msg)) {
-        fail('Telegram Premium required for server-side transcription.');
+        fail('Telegram Premium required for server-side transcription.', 'PREMIUM');
       }
       throw err;
     }
@@ -99,7 +99,7 @@ const caption: Cmd = async (args, flags) => {
   const maxTokens = flagNum(flags, 'max-tokens');
   await withClient(flags, async (client) => {
     const [message] = await client.getMessages(parsePeer(peer), { ids: [messageId] });
-    if (!message || !(message as any).media) fail('No media on that message');
+    if (!message || !(message as any).media) fail('No media on that message', 'NOT_FOUND');
     const tmpPath = join(tmpdir(), `tg-agent-caption-${randomBytes(8).toString('hex')}.bin`);
     try {
       await client.downloadMedia(message as any, { outputFile: tmpPath } as any);
@@ -112,4 +112,29 @@ const caption: Cmd = async (args, flags) => {
   });
 };
 
-export const media: CmdGroup = { send, download, transcribe, caption };
+/**
+ * `media caption-download` — explicit pre-fetch of Florence-2 weights.
+ *
+ * Mirrors avemeva's `media caption download` subcommand. Streams hf.co
+ * progress to stderr, prints `{ ok: true, dir }` on stdout when done.
+ * Use to warm up CI / Docker images before the first real `caption` call.
+ */
+const captionDownload: Cmd = async () => {
+  try {
+    const r = await downloadCaptionModel();
+    print(r);
+  } catch (err) {
+    fail((err as Error).message ?? String(err), 'UNKNOWN');
+  }
+};
+
+export const media: CmdGroup = {
+  send,
+  download,
+  transcribe,
+  caption,
+  // Spelled with a dash because `caption` is itself a leaf and the
+  // command resolver doesn't recurse into a function. `media caption-
+  // download` is the canonical form.
+  'caption-download': captionDownload,
+};
