@@ -193,10 +193,10 @@ The agent reads `SKILL.md`, shells out to `telegram-agent <command>`, parses JSO
 | **Raw MTProto** | `invoke <Namespace.Class> --params '{...}'` |
 
 ```bash
-telegram-agent dialogs --limit 10 | jq '.[] | {title, unreadCount}'
-telegram-agent search-global "stripe pricing" --limit 20
+telegram-agent chats list --limit 10 | jq '.items[] | {title, unreadCount}'
+telegram-agent msg search "stripe pricing" --limit 20
 telegram-agent saved tags
-telegram-agent react me 12345 🧠                # tag a Saved Message
+telegram-agent action react me 12345 🧠         # tag a Saved Message
 telegram-agent saved search --tag 🧠 --limit 50 # pull everything tagged "🧠"
 ```
 

@@ -202,9 +202,9 @@ telegram-agent action send <chatId> "response" --html
 ### Paginate through history
 
 ```bash
-telegram-agent msg list <chat> --limit 50 | jq '.[-1].id'
-# Take the oldest ID returned and pass it as --offset-id for the next page
-telegram-agent msg list <chat> --limit 50 --offset-id <oldestId>
+telegram-agent msg list <chat> --limit 50 | jq -r '.nextOffset'
+# Feed nextOffset back as --offset-id for the next page
+telegram-agent msg list <chat> --limit 50 --offset-id <nextOffset>
 ```
 
 ### Search with context
@@ -306,20 +306,28 @@ The following actions require explicit user confirmation before execution:
 - `logout`
 - Any `invoke` of destructive MTProto methods (`channels.DeleteMessages`, `messages.DeleteHistory`, `channels.KickFromChannel`, etc.)
 
-## Pagination
+## Response shape
 
-By default, list commands return plain arrays — paginate by feeding the oldest record's ID back as an offset flag:
+Every list / search / get response is an envelope:
 
-| Command | Offset flag | Cursor source |
-|---------|------------|---------------|
-| `msg list` | `--offset-id` | `id` of the oldest message in the previous response |
-| `chats list` | `--offset-date` | `date` of the oldest dialog in the previous response (unix timestamp) |
-| `chats search` | — | No pagination — single shot |
-| `msg search` (per-chat) | `--offset-id` | `id` of the oldest hit |
-| `chats members` | `--limit` only | Increase limit; no cursor pagination |
-| `saved history` | `--offset-id` | `id` of the oldest Saved message |
+```json
+{ "items": [...], "hasMore": true, "nextOffset": <cursor> }
+```
 
-Pass `--paginated` to opt into an envelope shape: `{ items, hasMore, nextOffset }`. Pipe `nextOffset` back into the appropriate offset flag for the next page. A response with `hasMore: false` (or a short page in the default array shape) means end-of-history.
+`hasMore: false` means end-of-history. `nextOffset` is the cursor — feed it back into the appropriate offset flag for the next page:
+
+| Command | Offset flag for next page | Cursor type |
+|---------|-------------------------|-------------|
+| `msg list` | `--offset-id` | message id (number) |
+| `msg get` | — | single-shot, `hasMore` always false |
+| `msg search` (per-chat) | `--offset-id` | message id (number) |
+| `msg search` (global) | — | `nextOffset: null` for now — global SearchGlobal cursor is roadmap |
+| `chats list` | `--offset-date` | unix timestamp (number) |
+| `chats search` | — | single-shot |
+| `chats members` | — | no cursor pagination, raise `--limit` |
+| `saved search` / `saved history` | `--offset-id` | message id (number) |
+
+Iterate with `jq` like `| jq '.items[]'`.
 
 ## Formatting
 

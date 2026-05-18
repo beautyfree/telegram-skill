@@ -58,15 +58,11 @@ const list: Cmd = async (_, flags) => {
       .filter((d: any) => (wantUnread ? (d.unreadCount ?? 0) > 0 : true))
       .filter(match)
       .map(serializeDialog);
-    if (flagBool(flags, 'paginated')) {
-      const limit = flagNum(flags, 'limit') ?? 50;
-      const hasMore = out.length >= limit;
-      // Cursor is the oldest dialog's `date` — pass back as `--offset-date`.
-      const nextOffset = out.length ? Math.min(...out.map((d: any) => d.date ?? 0)) : null;
-      print({ items: out, hasMore, nextOffset });
-    } else {
-      print(out);
-    }
+    const limit = flagNum(flags, 'limit') ?? 50;
+    const hasMore = out.length >= limit;
+    // Cursor: oldest dialog's `date`, fed back via `--offset-date`.
+    const nextOffset = out.length ? Math.min(...out.map((d: any) => d.date ?? 0)) : null;
+    print({ items: out, hasMore, nextOffset });
   });
 };
 
@@ -78,13 +74,14 @@ const search: Cmd = async (args, flags) => {
     const matches: any[] = [];
     if (flagBool(flags, 'global')) {
       // Public Telegram search — useful for discovering channels you're
-      // not in yet. Server-side, won't include your private chats.
+      // not in yet. Server-side, won't include your private chats. Single
+      // shot — Telegram returns at most `limit` results, no pagination.
       const result: any = await client.invoke(
         new Api.contacts.Search({ q: query, limit })
       );
       for (const c of result.chats ?? []) matches.push(serializeEntity(c));
       for (const u of result.users ?? []) matches.push(serializeEntity(u));
-      print(matches);
+      print({ items: matches, hasMore: false, nextOffset: null });
       return;
     }
     // Local: iterate dialogs, substring match against name/title/username.
@@ -98,7 +95,7 @@ const search: Cmd = async (args, flags) => {
       matches.push(serializeDialog(d));
       if (matches.length >= limit) break;
     }
-    print(matches);
+    print({ items: matches, hasMore: matches.length >= limit, nextOffset: null });
   });
 };
 
@@ -117,7 +114,9 @@ const members: Cmd = async (args, flags) => {
     else if (t === 'admin') opts.filter = new Api.ChannelParticipantsAdmins();
     else if (t === 'recent') opts.filter = new Api.ChannelParticipantsRecent();
     const list = await client.getParticipants(parsePeer(peer), opts);
-    print(list.map(serializeEntity));
+    const items = list.map(serializeEntity);
+    const limit = opts.limit;
+    print({ items, hasMore: items.length >= limit, nextOffset: null });
   });
 };
 

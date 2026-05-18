@@ -62,7 +62,7 @@ const HELP = `telegram-agent ${VERSION} — Telegram CLI for AI agents
 
 USAGE
   telegram-agent <noun> <verb> [args]    e.g. telegram-agent chats list --limit 10
-  telegram-agent <verb> [args]            (back-compat shorthand)
+  telegram-agent <verb> [args]            for single-shot leaves: login, info, doctor, listen, invoke
   telegram-agent --help | --version
 
 SESSIONS

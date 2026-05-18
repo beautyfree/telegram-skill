@@ -35,7 +35,7 @@ telegram-agent saved tag-rename 🎬 "Watch later"
 ### 2. Pull a batch
 
 ```bash
-telegram-agent msg list me --limit 100 | jq '.[] | {id, date, text, mediaType}'
+telegram-agent msg list me --limit 100 | jq '.items[] | {id, date, text, mediaType}'
 ```
 
 ### 3. Classify and tag

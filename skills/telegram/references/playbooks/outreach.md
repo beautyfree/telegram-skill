@@ -10,7 +10,7 @@ Read every rule before starting.
 2. **Daily cap**: default 20 sends/day per account. Telegram flags more as spam.
 3. **Cooldown**: min 30 sec between two sends to *different* peers. Min 24h before re-messaging the *same* peer.
 4. **Personalize**: each message must reference something specific to the recipient. No identical messages to >1 peer.
-5. **Log everything**: `telegram-agent send` returns the message id — save it.
+5. **Log everything**: `telegram-agent action send` returns the message id — save it.
 6. **No bots, no channels** — DMs to users only. Channels have admins who'll mute/ban you.
 7. **Stop on first complaint** or `FLOOD_WAIT` error. Don't try to work around the rate limit.
 
@@ -54,7 +54,7 @@ For each peer in the batch:
 
 4. **Send** — only after approval. Save the returned id:
    ```bash
-   telegram-agent send @target "<personalized text>" | jq '.id'
+   telegram-agent action send @target "<personalized text>" | jq '.id'
    ```
 
 5. **Log** to a file with timestamp, peer, message id.

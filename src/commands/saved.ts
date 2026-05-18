@@ -79,7 +79,11 @@ const search: Cmd = async (_, flags) => {
     const savedPeer = flagStr(flags, 'saved-peer');
     if (savedPeer) params.savedPeerId = await inputPeerOf(client, savedPeer);
     const result: any = await client.invoke(new Api.messages.Search(params));
-    print((result.messages ?? []).map(serializeMessage));
+    const items = (result.messages ?? []).map(serializeMessage);
+    const limit = params.limit;
+    const hasMore = items.length >= limit;
+    const nextOffset = items.length ? Math.min(...items.map((m: any) => m.id)) : null;
+    print({ items, hasMore, nextOffset });
   });
 };
 
@@ -103,19 +107,23 @@ const history: Cmd = async (args, flags) => {
   const peer = need(args, 0, 'peer');
   await withClient(flags, async (client) => {
     const inputPeer = await inputPeerOf(client, peer);
+    const limit = flagNum(flags, 'limit') ?? 50;
     const result: any = await client.invoke(
       new Api.messages.GetSavedHistory({
         peer: inputPeer,
         offsetId: flagNum(flags, 'offset-id') ?? 0,
         offsetDate: 0,
         addOffset: 0,
-        limit: flagNum(flags, 'limit') ?? 50,
+        limit,
         maxId: 0,
         minId: 0,
         hash: bigInt(0) as any,
       })
     );
-    print((result.messages ?? []).map(serializeMessage));
+    const items = (result.messages ?? []).map(serializeMessage);
+    const hasMore = items.length >= limit;
+    const nextOffset = items.length ? Math.min(...items.map((m: any) => m.id)) : null;
+    print({ items, hasMore, nextOffset });
   });
 };
 

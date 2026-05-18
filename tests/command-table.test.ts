@@ -35,17 +35,31 @@ describe('commandTable', () => {
     }
   });
 
-  it('preserves back-compat flat aliases', () => {
-    expect(commandTable.dialogs).toBe(get(commandTable, ['chats', 'list']));
-    expect(commandTable['search-dialogs']).toBe(get(commandTable, ['chats', 'search']));
-    expect(commandTable.participants).toBe(get(commandTable, ['chats', 'members']));
-    expect(commandTable.messages).toBe(get(commandTable, ['msg', 'list']));
-    expect(commandTable.get).toBe(get(commandTable, ['msg', 'get']));
-    expect(commandTable.send).toBe(get(commandTable, ['action', 'send']));
-    expect(commandTable.delete).toBe(get(commandTable, ['action', 'delete']));
-    expect(commandTable.forward).toBe(get(commandTable, ['action', 'forward']));
-    expect(commandTable['mark-read']).toBe(get(commandTable, ['action', 'mark-read']));
-    expect(commandTable['send-file']).toBe(get(commandTable, ['media', 'send']));
-    expect(commandTable.download).toBe(get(commandTable, ['media', 'download']));
+  it('has no flat aliases for noun-verb leaves', () => {
+    // Flat aliases (dialogs, messages, send, …) were dropped — only the
+    // noun-verb form is supported. This test guards against accidental
+    // re-introduction.
+    for (const alias of [
+      'dialogs',
+      'search-dialogs',
+      'participants',
+      'resolve',
+      'messages',
+      'search',
+      'search-global',
+      'get',
+      'send',
+      'edit',
+      'delete',
+      'forward',
+      'pin',
+      'unpin',
+      'react',
+      'mark-read',
+      'send-file',
+      'download',
+    ]) {
+      expect(commandTable[alias]).toBeUndefined();
+    }
   });
 });

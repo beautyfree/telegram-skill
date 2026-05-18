@@ -10,7 +10,7 @@ Decide how far back to read. Either by count (`--limit 200`) or by date (`--min-
 
 ```bash
 since=$(date -v -1d +%s)   # 24h ago, macOS. Linux: date -d '1 day ago' +%s
-telegram-agent search @channel "" --min-date "$since" --limit 200 > batch.json
+telegram-agent msg search "" --chat @channel --since "$since" --limit 200 > batch.json
 ```
 
 Or just by count:
@@ -22,7 +22,7 @@ telegram-agent msg list @channel --limit 100 > batch.json
 ### 2. Extract what you need
 
 ```bash
-jq '.[] | {id, date, from: .fromId, text}' batch.json > simple.json
+jq '.items[] | {id, date, from: .fromId, text}' batch.json > simple.json
 ```
 
 For media-heavy channels filter media out for summarization (they pollute the prompt):
@@ -50,7 +50,7 @@ Read `textonly.json`, generate a digest. Format suggestion:
 - ...
 ```
 
-Include message ids so the user can `telegram-agent get @channel <id>` to jump.
+Include message ids so the user can `telegram-agent msg get @channel <id>` to jump.
 
 ### 4. Optional — pin or react
 
