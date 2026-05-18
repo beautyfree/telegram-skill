@@ -94,7 +94,20 @@ export const doctor: Cmd = async (_, flags) => {
       : `not running — first call will be slower. Start with \`telegram-agent daemon start\`.`,
   });
 
-  // 6. Multiple accounts hint
+  // 6. Stray session leak — historical bug where gram.js's bundled
+  // StoreSession wrote URL-encoded absolute paths into <cwd>/Users/...
+  // Fixed by switching to FileSession, but warn if an old leak is still
+  // sitting under the current cwd so the user can `rm -rf Users/`.
+  const strayLeak = join(process.cwd(), 'Users');
+  if (existsSync(strayLeak)) {
+    checks.push({
+      check: 'session-leak',
+      status: 'warn',
+      detail: `Stray ${strayLeak} directory detected — leftover from a pre-1.0.1 session-storage bug. Safe to \`rm -rf "${strayLeak}"\`.`,
+    });
+  }
+
+  // 7. Multiple accounts hint
   if (all.length > 1) {
     checks.push({
       check: 'accounts',

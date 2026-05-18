@@ -1,5 +1,5 @@
 import { Api, TelegramClient } from 'telegram';
-import { StoreSession } from 'telegram/sessions/index.js';
+import { FileSession } from './session.js';
 import { computeCheck } from 'telegram/Password.js';
 import { mkdirSync } from 'fs';
 import { join } from 'path';
@@ -61,7 +61,7 @@ export async function clientForAccount(accountId: string): Promise<TelegramClien
   if (cached) return cached;
 
   const { apiId, apiHash } = apiCreds();
-  const session = new StoreSession(sessionPathFor(accountId));
+  const session = new FileSession(sessionPathFor(accountId));
   const client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 5 });
   await client.connect();
 
@@ -99,7 +99,7 @@ const pending = new Map<string, PendingLogin>();
 
 export async function loginStart(authId: string, phone: string): Promise<void> {
   const { apiId, apiHash } = apiCreds();
-  const session = new StoreSession(join(sessionsDir, `_pending_${authId}`));
+  const session = new FileSession(join(sessionsDir, `_pending_${authId}`));
   const client = new TelegramClient(session, apiId, apiHash, { connectionRetries: 3 });
   await client.connect();
   const result = await client.sendCode({ apiId, apiHash }, phone);
@@ -152,7 +152,7 @@ async function finalizeLogin(authId: string, entry: PendingLogin): Promise<Accou
   // Promote the pending session to its permanent location.
   const finalDir = sessionPathFor(accountId);
   const { apiId, apiHash } = apiCreds();
-  const finalSession = new StoreSession(finalDir);
+  const finalSession = new FileSession(finalDir);
   await finalSession.load();
   const src = entry.client.session as any;
   (finalSession as any).setDC?.(src.dcId, src.serverAddress, src.port);

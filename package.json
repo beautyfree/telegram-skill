@@ -1,6 +1,6 @@
 {
   "name": "telegram-agent",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~50× lower context cost than an always-on MCP server. Standalone CLI (`telegram-agent`) talks to Telegram MTProto directly via gram.js, no MCP server in the loop. JSON-first output. One-command install for every major agent client. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
   "type": "module",
   "main": "dist/cli.js",
