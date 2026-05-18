@@ -46,6 +46,7 @@ telegram-agent chats list --offset-date N                # Paginate (unix timest
 telegram-agent chats list --ignore-pinned                # Skip pinned dialogs
 telegram-agent chats members <chat> [--limit N] [--query text]   # Group/channel members
 telegram-agent chats members <chat> --type bot|admin|recent      # Filter by member type
+telegram-agent chats members <chat> --profiles                   # Fan-out `users.GetFullUser` per member for bio/about (N extra RPCs)
 
 # Messages — read
 telegram-agent msg list <chat> [--limit N]               # Message history (newest first)
@@ -57,6 +58,7 @@ telegram-agent msg list <chat> --from <user>             # Filter by sender
 telegram-agent msg list <chat> --filter photos           # photos|videos|photoVideo|documents|music|voice|roundVideo|roundVoice|gif|url|geo|contacts|chatPhotos|myMentions|pinned
 telegram-agent msg list <chat> --auto-download           # Auto-save photos/stickers/voice (adds downloadPath)
 telegram-agent msg list <chat> --auto-transcribe         # Auto-transcribe voice/video notes (Premium)
+telegram-agent msg list <chat> --preview-links           # Attach `{ url, title, description }` for the first URL in each message
 telegram-agent msg list <chat> --full                    # Disable 500-char text truncation
 telegram-agent msg list <chat> --reverse                 # Oldest first instead of newest first
 telegram-agent msg get  <chat> <id[,id,...]>             # Fetch one or more messages by ID
@@ -126,6 +128,7 @@ telegram-agent media transcribe <chat> <msgId>                           # Serve
 telegram-agent media caption <chat> <msgId>                              # Local image caption via Florence-2 (needs @huggingface/transformers)
 telegram-agent media caption <chat> <msgId> --max-tokens 80              # Longer caption
 telegram-agent media caption-download                                    # Pre-fetch Florence-2 weights (~150 MB) without running a caption
+telegram-agent media caption-run <file.jpg> [more...]                    # Caption arbitrary local image files (no chat needed)
 
 # Saved Messages — reaction-tags (Premium)
 telegram-agent saved tags                                                # List your tag reactions + titles
@@ -333,6 +336,12 @@ The following actions require explicit user confirmation before execution:
   "albumId": "1234567890",                     // present only when grouped
   "downloadPath": "~/.telegram-agent/downloads/...",   // small media auto-fetched (≤1MB) or --auto-download lifts cap
   "mediaType": "MessageMediaPhoto",
+  "buttons": [                                  // present when message has an inline keyboard
+    { "index": 1, "row": 0, "col": 0, "label": "Confirm", "type": "KeyboardButtonCallback", "data": "<base64>" }
+  ],
+  "links": [                                    // present with --preview-links
+    { "url": "https://…", "title": "…", "description": "…" }
+  ],
   "views": 42,
   "transcription": { "text": "..." }           // present with --auto-transcribe + Premium
 }

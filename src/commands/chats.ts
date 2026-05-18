@@ -19,6 +19,7 @@ import {
   flagNum,
   flagStr,
 } from './_shared.js';
+import { enrichMemberList } from '../enrich/profiles.js';
 
 /**
  * Map a high-level `--type` keyword to a predicate over a gram.js Dialog.
@@ -114,7 +115,15 @@ const members: Cmd = async (args, flags) => {
     else if (t === 'admin') opts.filter = new Api.ChannelParticipantsAdmins();
     else if (t === 'recent') opts.filter = new Api.ChannelParticipantsRecent();
     const list = await client.getParticipants(parsePeer(peer), opts);
-    const items = list.map(serializeEntity);
+    // Opt-in profile enrichment — each member gets a `users.GetFullUser`
+    // round-trip for bio/about. Off by default because it costs N extra
+    // RPCs on big groups.
+    if (flagBool(flags, 'profiles')) await enrichMemberList(client, list as any[]);
+    const items = list.map((e: any) => {
+      const base = serializeEntity(e);
+      if (e?.profile && base) (base as any).profile = e.profile;
+      return base;
+    });
     const limit = opts.limit;
     print({ items, hasMore: items.length >= limit, nextOffset: null });
   });

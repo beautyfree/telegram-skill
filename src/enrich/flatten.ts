@@ -87,6 +87,64 @@ interface Identity {
   username?: string;
 }
 
+export interface FlatButton {
+  /** Flat 1-based index across the keyboard, matches `action click <n>`. */
+  index: number;
+  /** Row index (0-based) for callers that want the original layout. */
+  row: number;
+  /** Column index within the row. */
+  col: number;
+  label: string;
+  /** Button type from gram.js — `KeyboardButtonCallback`, `…Url`, `…WebApp`, … */
+  type?: string;
+  /** Present for URL / web-app / login-url buttons. */
+  url?: string;
+  /** Present for callback buttons — base64 of the callback payload. */
+  data?: string;
+}
+
+/**
+ * Convert a gram.js `replyMarkup` (ReplyInlineMarkup / KeyboardButtonRow)
+ * into a flat `FlatButton[]`. Numbers buttons left-to-right, top-to-bottom
+ * starting at 1 — matches `telegram-agent action click <n>`.
+ *
+ * Returns undefined when there's no keyboard. We only flatten inline
+ * keyboards (`ReplyInlineMarkup`); persistent reply keyboards aren't
+ * actionable from the CLI.
+ */
+function flattenButtons(replyMarkup: any): FlatButton[] | undefined {
+  if (!replyMarkup) return undefined;
+  if (replyMarkup.className !== 'ReplyInlineMarkup') return undefined;
+  const rows = replyMarkup.rows ?? [];
+  const out: FlatButton[] = [];
+  let index = 1;
+  for (let r = 0; r < rows.length; r++) {
+    const buttons = rows[r]?.buttons ?? [];
+    for (let c = 0; c < buttons.length; c++) {
+      const b = buttons[c];
+      const item: FlatButton = {
+        index,
+        row: r,
+        col: c,
+        label: b.text ?? '',
+        type: b.className,
+      };
+      if (b.url) item.url = b.url;
+      if (b.data) {
+        // gram.js gives data as a Buffer for callback buttons.
+        try {
+          item.data = Buffer.isBuffer(b.data) ? b.data.toString('base64') : String(b.data);
+        } catch {
+          /* swallow */
+        }
+      }
+      out.push(item);
+      index++;
+    }
+  }
+  return out.length ? out : undefined;
+}
+
 export interface FlatMessage {
   id: number;
   date: number;
@@ -99,6 +157,8 @@ export interface FlatMessage {
   albumId?: string;
   downloadPath?: string;
   mediaType?: string;
+  buttons?: FlatButton[];
+  links?: { url: string; title?: string; description?: string }[];
   views?: number;
   forwards?: number;
   transcription?: { text?: string; pending?: boolean; error?: string };
@@ -126,6 +186,8 @@ export function flattenMessage(m: any, nowMs: number = Date.now()): FlatMessage 
     albumId: m.groupedId?.toString?.() ?? m.albumId,
     downloadPath: m.downloadPath,
     mediaType: m.media?.className ?? m.mediaType,
+    buttons: flattenButtons(m.replyMarkup),
+    links: m.links,
     views: m.views,
     forwards: m.forwards,
     transcription: m.transcription,
@@ -137,3 +199,5 @@ export function flattenMessage(m: any, nowMs: number = Date.now()): FlatMessage 
 export function flattenMessages(messages: any[], nowMs: number = Date.now()): FlatMessage[] {
   return messages.map((m) => flattenMessage(m, nowMs));
 }
+
+export { flattenButtons };

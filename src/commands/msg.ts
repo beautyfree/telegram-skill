@@ -29,6 +29,7 @@ import {
 import { addSenderNames } from '../enrich/names.js';
 import { autoDownloadSmall, autoDownloadAll } from '../enrich/download.js';
 import { flattenMessages, flattenMessage } from '../enrich/flatten.js';
+import { attachLinkPreviews } from '../enrich/links.js';
 
 const TRUNCATE_DEFAULT = 500;
 
@@ -109,6 +110,7 @@ const list: Cmd = async (args, flags) => {
     if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, filtered, accountId);
     await addSenderNames(client, filtered);
     if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, filtered);
+    if (flagBool(flags, 'preview-links')) await attachLinkPreviews(client, filtered);
     const enriched = flattenMessages(filtered);
     const truncated = applyTruncate(enriched, flagBool(flags, 'full') ?? false);
     const wantLimit = flagNum(flags, 'limit') ?? 50;
@@ -131,6 +133,7 @@ const get: Cmd = async (args, flags) => {
     if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, msgs, accountId);
     await addSenderNames(client, msgs);
     if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, msgs);
+    if (flagBool(flags, 'preview-links')) await attachLinkPreviews(client, msgs);
     const items = applyTruncate(flattenMessages(msgs), flagBool(flags, 'full') ?? false);
     // `msg get` is single-shot — no pagination, but we keep the envelope
     // shape so every list/search/get response is the same shape.
@@ -187,6 +190,7 @@ const search: Cmd = async (args, flags) => {
     await autoDownloadSmall(client, rawHits, accountId);
     if (flagBool(flags, 'auto-download')) await autoDownloadAll(client, rawHits, accountId);
     if (flagBool(flags, 'auto-transcribe')) await autoTranscribe(client, rawHits);
+    if (flagBool(flags, 'preview-links')) await attachLinkPreviews(client, rawHits);
     const context = flagNum(flags, 'context') ?? 0;
 
     function peerOf(m: any): any {

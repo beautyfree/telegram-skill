@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { flattenMessage, flattenMessages, smartDate } from '../src/enrich/flatten.js';
+import { flattenMessage, flattenMessages, smartDate, flattenButtons } from '../src/enrich/flatten.js';
 
 describe('smartDate', () => {
   const NOW = Date.UTC(2026, 4, 19, 14, 0, 0); // 2026-05-19 14:00 UTC
@@ -82,6 +82,41 @@ describe('flattenMessage', () => {
     expect(flat.downloadPath).toBe('/tmp/x');
     expect(flat.transcription).toEqual({ text: 'hello' });
     expect(flat.mediaType).toBe('MessageMediaPhoto');
+  });
+
+  it('flattens inline keyboard into buttons[]', () => {
+    const raw = {
+      id: 9,
+      date: NOW / 1000,
+      message: 'choose',
+      replyMarkup: {
+        className: 'ReplyInlineMarkup',
+        rows: [
+          {
+            buttons: [
+              { className: 'KeyboardButtonCallback', text: 'Yes', data: Buffer.from('ok') },
+              { className: 'KeyboardButtonUrl', text: 'Docs', url: 'https://example.com' },
+            ],
+          },
+          { buttons: [{ className: 'KeyboardButtonCallback', text: 'Cancel', data: Buffer.from('no') }] },
+        ],
+      },
+    };
+    const flat = flattenMessage(raw, NOW);
+    expect(flat.buttons).toEqual([
+      { index: 1, row: 0, col: 0, label: 'Yes', type: 'KeyboardButtonCallback', data: Buffer.from('ok').toString('base64') },
+      { index: 2, row: 0, col: 1, label: 'Docs', type: 'KeyboardButtonUrl', url: 'https://example.com' },
+      { index: 3, row: 1, col: 0, label: 'Cancel', type: 'KeyboardButtonCallback', data: Buffer.from('no').toString('base64') },
+    ]);
+  });
+
+  it('omits buttons when no keyboard', () => {
+    expect(flattenMessage({ id: 1, date: NOW / 1000, message: 'plain' }, NOW).buttons).toBeUndefined();
+  });
+
+  it('flattenButtons returns undefined on persistent reply keyboards', () => {
+    expect(flattenButtons({ className: 'ReplyKeyboardMarkup', rows: [] })).toBeUndefined();
+    expect(flattenButtons(undefined)).toBeUndefined();
   });
 
   it('flattenMessages maps over array', () => {

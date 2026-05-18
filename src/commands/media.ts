@@ -113,6 +113,33 @@ const caption: Cmd = async (args, flags) => {
 };
 
 /**
+ * `media caption-run <file...>` — caption one or more local image files.
+ *
+ * Same model and daemon as `media caption <chat> <msgId>`, but the input
+ * is a list of local file paths instead of a Telegram message. Useful for
+ * batch jobs / pipelines that already have the bytes on disk and want a
+ * caption without round-tripping through Telegram.
+ *
+ *   telegram-agent media caption-run img1.jpg img2.png [--max-tokens N]
+ */
+const captionRun: Cmd = async (args, flags) => {
+  if (args.length === 0) fail('Provide at least one image path', 'INVALID_ARGS');
+  const maxTokens = flagNum(flags, 'max-tokens');
+  const { existsSync } = await import('fs');
+  const { resolve } = await import('path');
+  const paths = args.map((a) => resolve(a));
+  for (const p of paths) {
+    if (!existsSync(p)) fail(`File not found: ${p}`, 'NOT_FOUND');
+  }
+  try {
+    const result = await captionFiles(paths, maxTokens);
+    print(result);
+  } catch (err) {
+    fail((err as Error).message ?? String(err), 'UNKNOWN');
+  }
+};
+
+/**
  * `media caption-download` — explicit pre-fetch of Florence-2 weights.
  *
  * Mirrors avemeva's `media caption download` subcommand. Streams hf.co
@@ -133,8 +160,9 @@ export const media: CmdGroup = {
   download,
   transcribe,
   caption,
-  // Spelled with a dash because `caption` is itself a leaf and the
+  // Spelled with dashes because `caption` is itself a leaf and the
   // command resolver doesn't recurse into a function. `media caption-
-  // download` is the canonical form.
+  // download` / `media caption-run` are the canonical forms.
   'caption-download': captionDownload,
+  'caption-run': captionRun,
 };
