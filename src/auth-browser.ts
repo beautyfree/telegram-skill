@@ -28,7 +28,7 @@ function loadPkgMeta(): { name: string; version: string; repoUrl?: string } {
     }
     return { name: pkg.name, version: pkg.version, repoUrl };
   } catch {
-    return { name: 'mcp-telegram', version: '0.0.0' };
+    return { name: 'telegram-agent', version: '0.0.0' };
   }
 }
 

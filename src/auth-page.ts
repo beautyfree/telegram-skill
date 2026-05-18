@@ -44,7 +44,7 @@ export function renderAuthPage(
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>mcp-telegram</title>
+<title>telegram-agent</title>
 <style>
   :root {
     color-scheme: light dark;

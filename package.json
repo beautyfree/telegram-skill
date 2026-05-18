@@ -81,7 +81,6 @@
     "build": "tsc",
     "cli": "node dist/cli.js",
     "dev": "tsx watch src/cli.ts",
-    "measure-tokens": "node scripts/measure-tokens.mjs",
     "prepublishOnly": "npm run build && chmod +x dist/cli.js"
   },
   "dependencies": {
