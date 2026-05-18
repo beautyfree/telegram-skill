@@ -6,13 +6,7 @@ import { dirname, join } from 'path';
 import open from 'open';
 
 import { renderAuthPage } from './auth-page.js';
-import { TOOL_CATALOG } from './tool-catalog.js';
-import {
-  listAccounts,
-  setStoredCredentials,
-  getStoredSettings,
-  setStoredSettings,
-} from './state.js';
+import { listAccounts, setStoredCredentials } from './state.js';
 import {
   loginStart,
   loginSubmitCode,
@@ -40,47 +34,6 @@ function loadPkgMeta(): { name: string; version: string; repoUrl?: string } {
 
 const pkgMeta = loadPkgMeta();
 
-interface SettingsField {
-  source: 'env' | 'stored' | 'default';
-  value: string;
-}
-interface SettingsSnapshot {
-  readonly: SettingsField & { value: 'true' | 'false' };
-  tools: SettingsField;
-  disable: SettingsField;
-}
-
-/**
- * Build a snapshot of the gating settings that the page can render.
- *
- * For each field: env wins; otherwise fall back to state.json; otherwise
- * report "default". `source` lets the UI lock the field when env is the
- * authority (so users know where to change it).
- */
-function settingsSnapshot(): SettingsSnapshot {
-  const stored = getStoredSettings();
-  const pick = (envName: string, storedVal: string | undefined): SettingsField => {
-    const env = process.env[envName];
-    if (env !== undefined && env !== '') return { source: 'env', value: env };
-    if (storedVal) return { source: 'stored', value: storedVal };
-    return { source: 'default', value: '' };
-  };
-  const readonlyEnv = process.env.MCP_TELEGRAM_READONLY;
-  const readonly: SettingsSnapshot['readonly'] = (() => {
-    if (readonlyEnv !== undefined && readonlyEnv !== '') {
-      const truthy = ['1', 'true', 'yes'].includes(readonlyEnv.toLowerCase());
-      return { source: 'env', value: truthy ? 'true' : 'false' };
-    }
-    if (stored?.readonly !== undefined) return { source: 'stored', value: stored.readonly ? 'true' : 'false' };
-    return { source: 'default', value: 'false' };
-  })();
-  return {
-    readonly,
-    tools: pick('MCP_TELEGRAM_TOOLS', stored?.tools),
-    disable: pick('MCP_TELEGRAM_DISABLE', stored?.disable),
-  };
-}
-
 /**
  * Run a one-shot login flow in the browser.
  *
@@ -89,24 +42,11 @@ function settingsSnapshot(): SettingsSnapshot {
  * flow against it, and resolves once the user finishes (or rejects on
  * timeout / explicit cancel).
  */
-type PageMode = 'login' | 'settings';
-
 export function runBrowserLogin(opts: { timeoutMs?: number } = {}): Promise<AccountRecord> {
-  return runBrowserPage('login', opts) as Promise<AccountRecord>;
-}
-
-export function runBrowserSettings(opts: { timeoutMs?: number } = {}): Promise<void> {
-  return runBrowserPage('settings', opts) as Promise<void>;
-}
-
-function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<AccountRecord | void> {
-  // The HTTP server lives this long total — long enough that the user
-  // can inspect/edit settings after a successful auth before the tab
-  // becomes dead.
   const timeoutMs = opts.timeoutMs ?? 10 * 60_000;
   const authId = randomBytes(16).toString('base64url');
 
-  return new Promise<AccountRecord | void>((resolve, reject) => {
+  return new Promise<AccountRecord>((resolve, reject) => {
     let serverClosed = false;
     let promiseSettled = false;
 
@@ -115,7 +55,7 @@ function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<A
      *
      * Decoupled from shutdown — once the user finishes auth, the agent
      * can proceed immediately, but the HTTP server keeps running so the
-     * user can interact with the settings UI on the same tab.
+     * user can dismiss the tab cleanly.
      */
     const settlePromise = (fn: () => void) => {
       if (promiseSettled) return;
@@ -140,13 +80,7 @@ function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<A
     });
 
     const timer = setTimeout(() => {
-      if (mode === 'settings') {
-        // In settings mode, hitting the timeout just means the user
-        // walked away — that's not a failure.
-        settlePromise(() => resolve(undefined));
-      } else {
-        settlePromise(() => reject(new Error('Login timed out')));
-      }
+      settlePromise(() => reject(new Error('Login timed out')));
       shutdown();
     }, timeoutMs);
 
@@ -157,11 +91,7 @@ function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<A
       }
       const baseUrl = `http://127.0.0.1:${address.port}`;
       const authUrl = `${baseUrl}/`;
-      logger.info(
-        mode === 'settings'
-          ? `Opening settings page: ${authUrl}`
-          : `Opening browser for Telegram login: ${authUrl}`
-      );
+      logger.info(`Opening browser for Telegram login: ${authUrl}`);
       try {
         await open(authUrl);
       } catch (err) {
@@ -182,9 +112,7 @@ function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<A
           LOG_LEVEL: process.env.LOG_LEVEL,
         };
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        return res.end(
-          renderAuthPage(authId, accounts, creds, env, pkgMeta, settingsSnapshot(), TOOL_CATALOG, mode)
-        );
+        return res.end(renderAuthPage(authId, accounts, creds, env, pkgMeta));
       }
 
       if (req.method === 'GET' && url.pathname === '/logo.png') {
@@ -278,37 +206,8 @@ function runBrowserPage(mode: PageMode, opts: { timeoutMs?: number }): Promise<A
         return sendJson(res, 200, { redirect: '/done' });
       }
 
-      if (url.pathname === '/authorize/save-settings') {
-        const current = settingsSnapshot();
-        const next: { readonly?: boolean; tools?: string; disable?: string } = {};
-
-        // For each field: accept the page's value only when env doesn't
-        // own it; otherwise keep whatever was already stored.
-        if (current.readonly.source === 'env') {
-          // Leave whatever was stored before — env wins anyway.
-          next.readonly = getStoredSettings()?.readonly;
-        } else if (typeof body.readonly === 'boolean') {
-          next.readonly = body.readonly;
-        }
-        if (current.tools.source === 'env') {
-          next.tools = getStoredSettings()?.tools;
-        } else if (typeof body.tools === 'string') {
-          next.tools = body.tools;
-        }
-        if (current.disable.source === 'env') {
-          next.disable = getStoredSettings()?.disable;
-        } else if (typeof body.disable === 'string') {
-          next.disable = body.disable;
-        }
-        setStoredSettings(next);
-        return sendJson(res, 200, { ok: true, snapshot: settingsSnapshot() });
-      }
-
       if (url.pathname === '/authorize/close') {
         sendJson(res, 200, { ok: true });
-        // In settings-only mode the promise is still pending — resolve it
-        // here so the calling tool returns cleanly.
-        if (mode === 'settings') settlePromise(() => resolve(undefined));
         // Give the response a moment to flush before we tear down.
         setTimeout(shutdown, 200);
         return;
