@@ -98,7 +98,6 @@ Every command accepts `--account <id>` to pick which account it runs against.
 
 Override the base directory with `TELEGRAM_AGENT_HOME=/some/path`. Override the downloads destination with `TELEGRAM_AGENT_DOWNLOADS=/some/path`.
 
-Back-compat: if `~/.telegram-agent/` doesn't exist but a legacy `~/.mcp-telegram/` does, it's used automatically — migrating users don't need to re-authenticate.
 
 ## Troubleshooting
 

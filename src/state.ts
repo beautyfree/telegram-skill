@@ -24,20 +24,11 @@ interface StateShape {
 /**
  * On-disk home for the Telegram session store. Default location is
  * `~/.telegram-agent/`. Overridable with `TELEGRAM_AGENT_HOME`.
- *
- * Back-compat: `MCP_TELEGRAM_HOME` env and `~/.mcp-telegram/` directory
- * fallback are still honored for users migrating from earlier 2.x
- * installs — picked up only if the new location doesn't exist, so
- * existing logged-in users don't have to re-authenticate.
  */
 function resolveBaseDir(): string {
-  const fromEnv = process.env.TELEGRAM_AGENT_HOME || process.env.MCP_TELEGRAM_HOME;
+  const fromEnv = process.env.TELEGRAM_AGENT_HOME;
   if (fromEnv) return fromEnv;
-  const home = homedir();
-  const next = join(home, '.telegram-agent');
-  const legacy = join(home, '.mcp-telegram');
-  if (!existsSync(next) && existsSync(legacy)) return legacy;
-  return next;
+  return join(homedir(), '.telegram-agent');
 }
 
 const baseDir = resolveBaseDir();

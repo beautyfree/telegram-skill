@@ -10,17 +10,10 @@ import { existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 
-/**
- * Resolve `<TELEGRAM_AGENT_HOME>/daemon.sock`. Mirrors state.ts's
- * dir-resolution order so both packages agree on the location.
- */
+/** Resolve `<TELEGRAM_AGENT_HOME>/daemon.sock`. */
 export function daemonSocketPath(): string {
-  const envHome = process.env.TELEGRAM_AGENT_HOME || process.env.MCP_TELEGRAM_HOME;
-  if (envHome) return join(envHome, 'daemon.sock');
-  const home = homedir();
-  const next = join(home, '.telegram-agent');
-  const legacy = join(home, '.mcp-telegram');
-  const base = !existsSync(next) && existsSync(legacy) ? legacy : next;
+  const envHome = process.env.TELEGRAM_AGENT_HOME;
+  const base = envHome ?? join(homedir(), '.telegram-agent');
   return join(base, 'daemon.sock');
 }
 

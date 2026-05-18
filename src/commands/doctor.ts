@@ -74,11 +74,8 @@ export const doctor: Cmd = async (_, flags) => {
 
   // 4. State directory
   const stateDir = join(homedir(), '.telegram-agent');
-  const legacy = join(homedir(), '.mcp-telegram');
   if (existsSync(stateDir)) {
     checks.push({ check: 'state-dir', status: 'ok', detail: stateDir });
-  } else if (existsSync(legacy)) {
-    checks.push({ check: 'state-dir', status: 'warn', detail: `using legacy ${legacy} — consider \`mv ${legacy} ${stateDir}\`` });
   } else {
     checks.push({ check: 'state-dir', status: 'warn', detail: `not created yet (will be on first login)` });
   }
