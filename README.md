@@ -40,22 +40,30 @@ The two packages share the on-disk session store (`~/.telegram-agent/`) — sign
 
 ## Install
 
-Two steps. The first gets you the `telegram-agent` CLI + a Telegram session. The second drops the `SKILL.md` bundle into each agent so it knows how to call the CLI.
+One command. Drop the skill into your agent — it bootstraps the `telegram-agent` CLI, asks for your API credentials, and runs `login` itself on the first Telegram request.
 
-### 1. Install the CLI and sign in (one-time)
+```bash
+npx skills add beautyfree/telegram-agent -a claude-code -g
+```
+
+That's it. The next time you say "check my Telegram", the agent will:
+
+1. Run `npm i -g telegram-agent` if the binary isn't on `$PATH`.
+2. Ask you once for `TELEGRAM_API_ID` / `TELEGRAM_API_HASH` from [my.telegram.org/apps](https://my.telegram.org/apps) and persist them in your shell rc.
+3. Run `telegram-agent login` — opens a local browser → phone → SMS code → 2FA. Session caches in `~/.telegram-agent/` (shared with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) if you also run the MCP server).
+
+Prefer to do step 1–3 yourself, ahead of time? Run:
 
 ```bash
 npm install -g telegram-agent
 export TELEGRAM_API_ID=123456
 export TELEGRAM_API_HASH=abc...
-telegram-agent login          # opens a local browser → phone → SMS code → 2FA
+telegram-agent login
 ```
 
-Session persists at `~/.telegram-agent/`. Shared with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram) if you also run the MCP server.
+### Picking the install method
 
-### 2. Drop the skill into your agent
-
-Pick whichever method you prefer — both end with the same `SKILL.md` in the right place on disk.
+Two ways to drop the skill in. Both end with the same `SKILL.md` in the right place on disk.
 
 #### Option A — `npx skills add` (universal, 54+ agents) **[recommended]**
 
@@ -199,12 +207,12 @@ Run `telegram-agent help` for the full flag reference.
 
 1. **Session** — `telegram-agent login` opens a tiny local browser page for phone → SMS → 2FA, then stores the session at `~/.telegram-agent/`. Shared on-disk with [`mcp-telegram`](https://github.com/beautyfree/mcp-telegram).
 
-2. **Skill bundle** — one `SKILL.md` (frontmatter `name` + `description`, ~250 tokens) plus 5 lazy-loaded references under `references/`:
-   - `cli-reference.md` — every command + flag with examples
-   - `saved-tags.md` — categorize Saved Messages with reaction-tags
-   - `digest.md` — batch summary of a channel or DM
-   - `moderation.md` — bans, restrictions, admin-rights bitmasks
-   - `outreach.md` — careful cold/warm DM campaigns with caps + cooldowns
+2. **Skill bundle** — one `SKILL.md` (frontmatter `name` + `description`, ~250 tokens) with the full command list inline, plus narrow lazy-loaded references:
+   - `references/installation.md` — install, authentication, daemon storage, troubleshooting
+   - `references/playbooks/saved-tags.md` — categorize Saved Messages with reaction-tags
+   - `references/playbooks/digest.md` — batch summary of a channel or DM
+   - `references/playbooks/moderation.md` — bans, restrictions, admin-rights bitmasks
+   - `references/playbooks/outreach.md` — careful cold/warm DM campaigns with caps + cooldowns
 
    The agent reads `SKILL.md` only when your prompt matches its description. References load on-demand inside that activation.
 
