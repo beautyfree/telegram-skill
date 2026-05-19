@@ -1,120 +1,38 @@
 {
   "name": "telegram-agent",
-  "version": "1.0.12",
-  "description": "Telegram agent-skill for Claude Code, Codex CLI, Cursor, Gemini CLI, Cline, Windsurf, and any AI coding agent that supports the universal SKILL.md format. Lazy-loaded — ~0 context tokens until your prompt mentions Telegram. Standalone CLI (`telegram-agent`) talks to Telegram MTProto directly via gram.js. JSON-first output. One-command install for every major agent client. Read dialogs, search globally, send/edit/forward/react, tag Saved Messages (Premium reaction-tags), moderate channels, transcribe voice notes.",
+  "private": true,
+  "license": "GPL-3.0",
   "type": "module",
-  "main": "dist/cli.js",
-  "types": "dist/cli.d.ts",
-  "author": "Alexey Elizarov <alex.elizarov1@gmail.com>",
-  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:daemon": "bun --filter @tg/daemon dev",
+    "cli": "bun run apps/cli/src/index.ts --",
+    "build": "bun --filter './packages/*' build && bun --filter './apps/*' build",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "bun --filter '*' test",
+    "test:e2e": "bun --filter '*' test:e2e",
+    "typecheck": "bun --filter '*' typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.4",
+    "@playwright/test": "^1.58.2",
+    "@vitest/coverage-v8": "^4.0.18",
+    "apcach": "^0.6.4",
+    "typescript": "^5.7.2"
+  },
+  "version": "2.0.0-beta.1",
+  "description": "Telegram CLI for AI agents — TDLib-powered fork of avemeva/kurier with reaction-tags, session export, and skill bundle.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/beautyfree/telegram-agent.git"
   },
-  "homepage": "https://github.com/beautyfree/telegram-agent#readme",
+  "author": "Alexey Elizarov <alex.elizarov1@gmail.com>",
   "bugs": {
     "url": "https://github.com/beautyfree/telegram-agent/issues"
   },
-  "keywords": [
-    "telegram",
-    "telegram-agent",
-    "telegram-skill",
-    "telegram-cli",
-    "telegram-api",
-    "telegram-mtproto",
-    "telegram-user",
-    "telegram-search",
-    "telegram-saved-messages",
-    "saved-messages-tags",
-    "telegram-tags",
-    "agent-skill",
-    "agent-skills",
-    "skill-md",
-    "skill",
-    "skills",
-    "claude-code-skill",
-    "claude-skills",
-    "codex-skill",
-    "codex-skills",
-    "cursor-plugin",
-    "cursor-skill",
-    "gemini-cli-skill",
-    "gemini-cli-extension",
-    "cline-skill",
-    "windsurf-skill",
-    "goose-recipe",
-    "ai-agent",
-    "ai-agents",
-    "ai-tools",
-    "agent",
-    "agents",
-    "llm",
-    "llm-tools",
-    "claude",
-    "claude-code",
-    "claude-desktop",
-    "anthropic",
-    "openai",
-    "codex",
-    "cursor",
-    "gemini",
-    "cline",
-    "windsurf",
-    "goose",
-    "lazy-loading",
-    "progressive-disclosure",
-    "context-efficient",
-    "low-token"
-  ],
-  "files": [
-    "dist",
-    "skills",
-    "assets",
-    ".claude-plugin",
-    ".cursor-plugin",
-    "gemini-extension.json",
-    "mcp.json",
-    "SECURITY.md"
-  ],
-  "scripts": {
-    "build": "tsc",
-    "cli": "node dist/cli.js",
-    "dev": "tsx watch src/cli.ts",
-    "prepublishOnly": "npm run build && chmod +x dist/cli.js",
-    "test": "npm run build && vitest run",
-    "test:watch": "vitest",
-    "lint": "biome check src tests",
-    "format": "biome format --write src tests"
-  },
-  "dependencies": {
-    "big-integer": "^1.6.52",
-    "dotenv": "^16.3.1",
-    "open": "^11.0.0",
-    "telegram": "^2.19.10"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
-    "@types/node": "^20.10.5",
-    "@vitest/coverage-v8": "^2.1.9",
-    "tsx": "^4.19.2",
-    "typescript": "^5.3.3",
-    "vitest": "^2.1.9"
-  },
-  "engines": {
-    "node": ">=20.0.0"
-  },
-  "bin": {
-    "telegram-agent": "dist/cli.js"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "peerDependencies": {
-    "@huggingface/transformers": "^3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@huggingface/transformers": {
-      "optional": true
-    }
-  }
+  "homepage": "https://github.com/beautyfree/telegram-agent#readme"
 }

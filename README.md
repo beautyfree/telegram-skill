@@ -15,7 +15,12 @@
 
 </div>
 
-Plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto). The agent reads `SKILL.md` only when your prompt mentions Telegram — the rest of the time your context budget is untouched. Talks to Telegram directly through [gram.js](https://github.com/gram-js/gramjs).
+Plugs your AI coding agent into a real Telegram user account via [MTProto](https://core.telegram.org/mtproto). The agent reads `SKILL.md` only when your prompt mentions Telegram — the rest of the time your context budget is untouched.
+
+> [!NOTE]
+> **`telegram-agent` v2+ is a fork of [avemeva/kurier](https://github.com/avemeva/kurier)** (GPL-3.0). The original CLI is `agent-telegram`; we rebranded, added Saved-Messages reaction-tags, portable session export/import, and the SKILL.md bundle for AI coding agents. See [`ATTRIBUTION.md`](./ATTRIBUTION.md) for the full diff of what we added and changed.
+>
+> v1.x (≤1.0.12) lived on [gram.js](https://github.com/gram-js/gramjs) under MIT — see the `legacy-gramjs` branch / tag `v1.0.12`.
 
 **Use it to:** read dialogs · global message search · send / edit / forward / react · tag Saved Messages with reaction-tags (Premium) · moderate channels · send & download files · call raw MTProto methods. All against your real user account — no bot needed.
 

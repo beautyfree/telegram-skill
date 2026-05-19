@@ -1,9 +1,17 @@
 node_modules/
 dist/
+build/
+.claude/worktrees/
+.claude/settings.local.json
+apps/app/.logs/
 *.log
-.DS_Store
 .env
 .env.local
-# Stray session leak — gram.js StoreSession sometimes writes URL-encoded
-# absolute paths as relative filenames under cwd. Tracked separately.
-Users/
+.DS_Store
+*.tsbuildinfo
+stderr.tmp
+stderr.txt
+stdout.txt
+tg
+test-results/
+.claude/skills/*/reports/

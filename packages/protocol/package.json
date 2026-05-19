@@ -1,0 +1,23 @@
+{
+  "name": "@tg/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./proxy": "./src/proxy/index.ts",
+    "./paths": "./src/paths.ts"
+  },
+  "dependencies": {
+    "tdl": "^8.0.2",
+    "@prebuilt-tdlib/types": "0.1008061.0",
+    "prebuilt-tdlib": "^0.1008061.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}

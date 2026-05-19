@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["bun-types", "@prebuilt-tdlib/types"]
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
