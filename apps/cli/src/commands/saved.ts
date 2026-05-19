@@ -30,14 +30,16 @@ function formatTag(t: any): any {
   const reaction = t.tag ?? t.reaction;
   const out: any = { count: t.count };
   if (reaction?._ === 'reactionTypeEmoji') out.emoji = reaction.emoji;
-  else if (reaction?._ === 'reactionTypeCustomEmoji') out.customEmojiId = reaction.custom_emoji_id?.toString();
+  else if (reaction?._ === 'reactionTypeCustomEmoji')
+    out.customEmojiId = reaction.custom_emoji_id?.toString();
   if (t.label) out.label = t.label;
   return out;
 }
 
 function buildReactionType(args: { emoji?: string; customEmojiId?: string }): any {
   if (args.emoji) return { _: 'reactionTypeEmoji', emoji: args.emoji };
-  if (args.customEmojiId) return { _: 'reactionTypeCustomEmoji', custom_emoji_id: args.customEmojiId };
+  if (args.customEmojiId)
+    return { _: 'reactionTypeCustomEmoji', custom_emoji_id: args.customEmojiId };
   fail('--tag <emoji> or --tag-custom <id> required', 'INVALID_ARGS');
 }
 
@@ -50,7 +52,10 @@ export function register(parent: Command): void {
     .description('List your Saved Messages reaction tags + counts + custom titles')
     .action(() => {
       pending.action = async (client) => {
-        const res: any = await client.invoke({ _: 'getSavedMessagesTags', saved_messages_topic_id: 0 });
+        const res: any = await client.invoke({
+          _: 'getSavedMessagesTags',
+          saved_messages_topic_id: 0,
+        });
         const tags = (res?.tags ?? []).map(formatTag);
         success({ tags });
       };
@@ -79,7 +84,11 @@ export function register(parent: Command): void {
     .description('Server-suggested default emoji set for tagging Saved Messages')
     .action(() => {
       pending.action = async (client) => {
-        const res: any = await client.invoke({ _: 'getDefaultEmojiReactions' });
+        // `getDefaultEmojiReactions` exists in TDLib 1.8.30+ but is missing from
+        // the `tdlib-types` bindings. Cast through `unknown` to bypass strict typing.
+        const res: any = await (client.invoke as (req: unknown) => Promise<any>)({
+          _: 'getDefaultEmojiReactions',
+        });
         const emojis = (res?.emojis ?? []).map((e: any) => e.emoji ?? e);
         success({ emojis });
       };
@@ -95,9 +104,10 @@ export function register(parent: Command): void {
     .option('--limit <n>', 'Max results', '50')
     .action((opts: { tag?: string; tagCustom?: string; query?: string; limit?: string }) => {
       pending.action = async (client) => {
-        const tag = opts.tag || opts.tagCustom
-          ? buildReactionType({ emoji: opts.tag, customEmojiId: opts.tagCustom })
-          : undefined;
+        const tag =
+          opts.tag || opts.tagCustom
+            ? buildReactionType({ emoji: opts.tag, customEmojiId: opts.tagCustom })
+            : undefined;
         const limit = Math.max(1, Math.min(100, Number(opts.limit) || 50));
         const res: any = await client.invoke({
           _: 'searchSavedMessages',
@@ -141,7 +151,9 @@ export function register(parent: Command): void {
         });
         const messages: Td.message[] = res?.messages ?? [];
         if (!messages.length) {
-          warn('No Saved Messages — or Telegram still loading the chat. Retry in a moment if you expected results.');
+          warn(
+            'No Saved Messages — or Telegram still loading the chat. Retry in a moment if you expected results.',
+          );
         }
         success({
           items: messages.map((m: any) => ({

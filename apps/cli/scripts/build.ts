@@ -116,14 +116,14 @@ if (result.exitCode !== 0) {
 await Bun.file(`dist/${name}/package.json`).write(
   JSON.stringify(
     {
-      name: `@avemeva/${name}`,
+      name,
       version: pkg.version,
       os: [os],
       cpu: [arch],
       files: ['bin', 'lib'],
       repository: {
         type: 'git',
-        url: 'https://github.com/avemeva/kurier',
+        url: 'https://github.com/beautyfree/telegram-agent',
       },
     },
     null,

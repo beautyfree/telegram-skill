@@ -64,4 +64,4 @@ await $`git push && git push --tags`;
 
 console.log();
 console.log(`Released ${tag} — CI will build and publish.`);
-console.log(`Track: https://github.com/avemeva/kurier/actions`);
+console.log(`Track: https://github.com/beautyfree/telegram-agent/actions`);

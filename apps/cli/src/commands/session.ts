@@ -17,16 +17,20 @@
  * it like a password — never paste into chat, never commit, never email.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
-import type { Command } from 'commander';
 import { DB_DIR } from '@tg/protocol/paths';
+import type { Command } from 'commander';
 import { fail, success, warn } from '../output';
 
 function runTar(args: string[]): { stdout: Buffer; ok: boolean; stderr: string } {
   const r = spawnSync('tar', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-  return { stdout: r.stdout ?? Buffer.alloc(0), ok: r.status === 0, stderr: r.stderr?.toString('utf-8') ?? '' };
+  return {
+    stdout: r.stdout ?? Buffer.alloc(0),
+    ok: r.status === 0,
+    stderr: r.stderr?.toString('utf-8') ?? '',
+  };
 }
 
 export function register(parent: Command): void {
@@ -35,14 +39,13 @@ export function register(parent: Command): void {
   // --- session export ---
   session
     .command('export')
-    .description("Dump the current TDLib session as a base64 blob (=credential — treat as password)")
+    .description(
+      'Dump the current TDLib session as a base64 blob (=credential — treat as password)',
+    )
     .action(() => {
       // No client needed — pure file-system snapshot of TDLib's DB dir.
       if (!existsSync(DB_DIR)) {
-        fail(
-          `No session found at ${DB_DIR}. Run \`telegram-agent login\` first.`,
-          'NOT_FOUND',
-        );
+        fail(`No session found at ${DB_DIR}. Run \`telegram-agent login\` first.`, 'NOT_FOUND');
       }
       const r = runTar(['-C', path.dirname(DB_DIR), '-czf', '-', path.basename(DB_DIR)]);
       if (!r.ok) fail(`tar failed while exporting session: ${r.stderr.trim()}`, 'UNKNOWN');
@@ -61,7 +64,7 @@ export function register(parent: Command): void {
     .description('Import a previously exported session blob into the local TDLib database')
     .option('--string <blob>', 'Base64-encoded blob from `session export`')
     .option('--stdin', 'Read the blob from stdin')
-    .option('--force', "Overwrite the existing session (destructive)")
+    .option('--force', 'Overwrite the existing session (destructive)')
     .action(async (opts: { string?: string; stdin?: boolean; force?: boolean }) => {
       let blob = opts.string;
       if (!blob && opts.stdin) {
@@ -90,14 +93,22 @@ export function register(parent: Command): void {
           stdio: ['ignore', 'pipe', 'pipe'],
         });
         if (r.status !== 0) {
-          fail(`tar failed while importing session: ${r.stderr?.toString('utf-8').trim()}`, 'UNKNOWN');
+          fail(
+            `tar failed while importing session: ${r.stderr?.toString('utf-8').trim()}`,
+            'UNKNOWN',
+          );
         }
       } finally {
-        try { require('node:fs').unlinkSync(tmpTar); } catch {}
+        try {
+          require('node:fs').unlinkSync(tmpTar);
+        } catch {}
       }
 
       if (!existsSync(DB_DIR)) {
-        fail('Import completed but the expected session directory does not exist — blob format mismatch?', 'UNKNOWN');
+        fail(
+          'Import completed but the expected session directory does not exist — blob format mismatch?',
+          'UNKNOWN',
+        );
       }
       warn('Session imported. Run `telegram-agent me` to verify it authenticates.');
       success({ sessionDir: DB_DIR, bytes: tarBytes.length });

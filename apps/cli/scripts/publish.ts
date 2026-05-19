@@ -84,11 +84,11 @@ await $`cp scripts/postinstall.mjs ${wrapperDir}/postinstall.mjs`;
 
 const optionalDependencies: Record<string, string> = {};
 for (const { os, arch } of platforms) {
-  optionalDependencies[`@avemeva/telegram-agent-${os}-${arch}`] = version;
+  optionalDependencies[`telegram-agent-${os}-${arch}`] = version;
 }
 
 const wrapperPkg = {
-  name: '@avemeva/telegram-agent',
+  name: 'telegram-agent',
   version,
   description: 'Telegram CLI for AI agents',
   bin: { 'telegram-agent': './bin/telegram-agent.js' },
@@ -97,10 +97,10 @@ const wrapperPkg = {
   license: 'GPL-3.0',
   repository: {
     type: 'git',
-    url: 'https://github.com/avemeva/kurier',
+    url: 'https://github.com/beautyfree/telegram-agent',
     directory: 'apps/cli',
   },
-  homepage: 'https://github.com/avemeva/kurier/tree/main/apps/cli#readme',
+  homepage: 'https://github.com/beautyfree/telegram-agent/tree/main/apps/cli#readme',
 };
 
 await Bun.file(`${wrapperDir}/package.json`).write(JSON.stringify(wrapperPkg, null, 2));
@@ -121,10 +121,10 @@ if (dryRun) wrapperArgs.push('--dry-run');
 const wrapperResult = await $`${wrapperArgs}`.cwd(path.resolve(wrapperDir)).nothrow();
 if (wrapperResult.exitCode !== 0) {
   throw new Error(
-    `Failed to publish @avemeva/telegram-agent@${version} (exit code ${wrapperResult.exitCode})`,
+    `Failed to publish telegram-agent@${version} (exit code ${wrapperResult.exitCode})`,
   );
 }
-console.log(`  Published @avemeva/telegram-agent@${version}`);
+console.log(`  Published telegram-agent@${version}`);
 
 // --- Generate Homebrew formula ---
 
@@ -150,7 +150,7 @@ for (const [key, filePath] of Object.entries(archiveFiles)) {
   }
 }
 
-const ghBase = `https://github.com/avemeva/kurier/releases/download/v${version}`;
+const ghBase = `https://github.com/beautyfree/telegram-agent/releases/download/v${version}`;
 
 // Build platform blocks only for platforms that have actual archives (non-empty sha256)
 const macosBlocks: string[] = [];
@@ -197,7 +197,7 @@ const formula = `# typed: false
 
 class AgentTelegram < Formula
   desc "AI-powered Telegram CLI"
-  homepage "https://github.com/avemeva/kurier"
+  homepage "https://github.com/beautyfree/telegram-agent"
   version "${version}"
 
 ${osSections.join('\n\n')}

@@ -1,4 +1,4 @@
-name: Release to npm
+name: Release
 
 on:
   push:
@@ -6,22 +6,96 @@ on:
       - 'v*'
 
 jobs:
+  build:
+    name: Build ${{ matrix.os }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: darwin
+            arch: arm64
+            runner: macos-14
+          - os: darwin
+            arch: x64
+            runner: macos-13
+          - os: linux
+            arch: x64
+            runner: ubuntu-latest
+          - os: linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun --filter '*' test
+
+      - name: Build CLI for target
+        env:
+          TG_TARGET_OS: ${{ matrix.os }}
+          TG_TARGET_ARCH: ${{ matrix.arch }}
+        run: bun --filter @tg/cli build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-agent-${{ matrix.os }}-${{ matrix.arch }}
+          path: apps/cli/dist/telegram-agent-${{ matrix.os }}-${{ matrix.arch }}
+
   publish:
+    name: Publish to npm + GitHub Release
+    needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: 'https://registry.npmjs.org'
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
-      - name: Publish
-        run: npm publish --access public --provenance
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: apps/cli/dist
+
+      - name: Publish (npm + Homebrew formula)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd apps/cli
+          bun run scripts/publish.ts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            apps/cli/dist/telegram-agent-*/bin/*
+            apps/cli/dist/telegram-agent.rb

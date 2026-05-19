@@ -17,7 +17,9 @@ export type ErrorCode =
   | 'INVALID_ARGS'
   | 'TIMEOUT'
   | 'NO_SESSION'
-  | 'PEER_FLOOD';
+  | 'PEER_FLOOD'
+  | 'PERMISSION'
+  | 'PREMIUM';
 
 export interface PaginationMeta {
   hasMore?: boolean;

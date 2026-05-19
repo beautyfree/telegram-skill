@@ -17,20 +17,19 @@ const CLI_ENTRY = path.resolve(import.meta.dir, '../../src/index.ts');
 const TIMEOUT = 30_000;
 
 // --- Cold-cache test infrastructure ---
-const PROD_DB_DIR = path.join(
-  homedir(),
-  'Library',
-  'Application Support',
-  'dev.telegramai.app',
-  'tdlib_db',
-);
+// Source of auth keys: unified `~/.telegram-agent/tdlib_db/` (or TG_E2E_PROD_DB_DIR override).
+const PROD_DB_DIR =
+  process.env.TG_E2E_PROD_DB_DIR ?? path.join(homedir(), '.telegram-agent', 'tdlib_db');
 const TEST_PORT = '7399';
 const testAppDir = mkdtempSync(path.join(tmpdir(), 'telegram-agent-e2e-'));
 const testDbDir = path.join(testAppDir, 'tdlib_db');
 
-// Copy only td.binlog (auth keys) — no db.sqlite means cold cache
+// Copy only td.binlog (auth keys) — no db.sqlite means cold cache.
+// If the source binlog is missing, tests will skip via beforeAll guard.
 mkdirSync(testDbDir, { recursive: true });
-cpSync(path.join(PROD_DB_DIR, 'td.binlog'), path.join(testDbDir, 'td.binlog'));
+if (existsSync(path.join(PROD_DB_DIR, 'td.binlog'))) {
+  cpSync(path.join(PROD_DB_DIR, 'td.binlog'), path.join(testDbDir, 'td.binlog'));
+}
 
 const testEnv = {
   ...process.env,
