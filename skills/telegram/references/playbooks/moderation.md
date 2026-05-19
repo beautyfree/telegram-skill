@@ -12,7 +12,7 @@ telegram-agent chats members @channel --query "spam"   # filter by name
 
 ## Mutating ops — via raw MTProto
 
-`telegram-agent invoke <Namespace.Class> --params '{...}'` accepts any gram.js Api method. Entity-like params (`channel`, `user`, `participant`) auto-hydrate from `@username` / numeric / `me`.
+`telegram-agent invoke <Namespace.Class> --params '{...}'` accepts any TDLib method. Entity-like params (`channel`, `user`, `participant`) auto-hydrate from `@username` / numeric / `me`.
 
 ### Ban a user
 

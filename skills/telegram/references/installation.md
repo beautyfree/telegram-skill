@@ -56,7 +56,7 @@ telegram-agent accounts     # List signed-in accounts
 
 ## How it works
 
-A background daemon (Node.js + [gram.js](https://gram.js.org)) holds the MTProto WebSocket open. It auto-spawns on the first command and exits after 10 minutes of inactivity. You don't manage it manually.
+A background daemon (TDLib (via `tdl` + `prebuilt-tdlib`)) holds the MTProto WebSocket open. It auto-spawns on the first command and exits after 10 minutes of inactivity. You don't manage it manually.
 
 ```
 telegram-agent <command>
@@ -65,7 +65,7 @@ telegram-agent <command>
    daemon (auto-spawn if missing, Unix socket IPC)
        │
        ▼
-   gram.js MTProto client
+   TDLib MTProto client
        │
        ▼
    Telegram servers

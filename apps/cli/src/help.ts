@@ -62,6 +62,26 @@ const CATEGORIES: Category[] = [
     entries: [
       ['media download', 'Download media from a message or by file ID'],
       ['media transcribe', 'Transcribe a voice or video note to text (Telegram Premium)'],
+      ['media caption', 'Caption an image attached to a Telegram message (Florence-2, local)'],
+      ['media caption run', 'Caption arbitrary local image files'],
+      ['media caption download', 'Pre-fetch Florence-2 model weights (~150 MB)'],
+    ],
+  },
+  {
+    title: 'Saved Messages (Premium)',
+    entries: [
+      ['saved tags', 'List your Saved-Messages reaction tags + counts + custom titles'],
+      ['saved tag-rename', 'Rename (or clear) the custom title of a tag emoji'],
+      ['saved default-tags', 'Server-suggested default emoji set'],
+      ['saved search', 'Search Saved Messages by tag, query, or both'],
+      ['saved history', 'Walk Saved Messages history'],
+    ],
+  },
+  {
+    title: 'Portable session',
+    entries: [
+      ['session export', 'Dump current TDLib session as a base64 blob (=credential)'],
+      ['session import', 'Import a previously exported session blob'],
     ],
   },
   {
